@@ -1,15 +1,12 @@
+import { AppTooltip as Tooltip } from '@/components/ui/tooltip'
 import { registerPlugin } from '@capacitor/core'
 import { Box, Button, Flex, Image, NavLink, Stack, Text } from '@mantine/core'
 import SwipeableDrawer from '@mui/material/SwipeableDrawer'
 import { TestId } from '@shared/automation/testids'
 import {
-  IconCode,
   IconDownload,
   IconHelpCircle,
   IconInfoCircle,
-  IconLayoutSidebarLeftCollapse,
-  IconMessageChatbot,
-  IconPhotoPlus,
   IconPlus,
   type IconProps,
   IconSearch,
@@ -20,24 +17,20 @@ import clsx from 'clsx'
 import { useAtomValue } from 'jotai'
 import { type ElementType, useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { AppTooltip as Tooltip } from '@/components/ui/tooltip'
 import Divider from './components/common/Divider'
 import { ICON_SIZE, ICON_STROKE_WIDTH, IconButton, type IconButtonProps } from './components/common/IconButton'
 import { ScalableIcon } from './components/common/ScalableIcon'
 import ThemeSwitchButton from './components/dev/ThemeSwitchButton'
 import { useAppTitleBarHeight } from './components/layout/AppTitleBar'
-import { SidebarDesktopDownloadCard, useWebAppDownloadPromptVisible } from './components/layout/DesktopDownloadReminder'
-import { SidebarLowQuotaReminder } from './components/layout/LowQuotaReminder'
+
 import { overlayStackAtom } from './components/layout/Overlay'
-import { formatShortcut } from './components/Shortcut'
 import SessionList from './components/session/SessionList'
+import { formatShortcut } from './components/Shortcut'
 import { FORCE_ENABLE_DEV_PAGES } from './dev/devToolsConfig'
 import { useIsSmallScreen, useSidebarWidth } from './hooks/useScreenChange'
 import useVersion from './hooks/useVersion'
 import { navigateToSettings } from './modals/settings-navigation'
 import { trackingEvent } from './packages/event'
-import { buildChatboxUrl } from './packages/remote'
-import platform from './platform'
 import { getSidebarModalSx } from './sidebar-drawer'
 import icon from './static/icon.png'
 import { useLanguage } from './stores/settingsStore'
@@ -78,9 +71,6 @@ export default function Sidebar() {
   const sidebarWidth = useSidebarWidth()
 
   const isSmallScreen = useIsSmallScreen()
-  const showDownloadApp = CHATBOX_BUILD_PLATFORM === 'web'
-  const webAppDownloadPromptVisible = useWebAppDownloadPromptVisible()
-  const showDesktopDownloadCard = showDownloadApp && !isSmallScreen && webAppDownloadPromptVisible
 
   const [isResizing, setIsResizing] = useState(false)
   const resizeStartX = useRef<number>(0)
@@ -110,24 +100,6 @@ export default function Sidebar() {
     }
     trackingEvent('create_new_conversation', { event_category: 'user' })
   }, [navigate, setShowSidebar, isSmallScreen])
-
-  const handleCreateNewPictureSession = useCallback(() => {
-    navigate({ to: '/image-creator' })
-    if (isSmallScreen) {
-      setShowSidebar(false)
-    }
-    trackingEvent('open_image_creator', { event_category: 'user' })
-  }, [isSmallScreen, setShowSidebar, navigate])
-
-  const handleDownloadApp = useCallback(() => {
-    void platform.openLink(
-      buildChatboxUrl(`/redirect_app/homepage/${language}?utm_source=web&utm_content=sidebar_download_app#download`)
-    )
-    if (isSmallScreen) {
-      setShowSidebar(false)
-    }
-    trackingEvent('download_app', { event_category: 'user' })
-  }, [isSmallScreen, language, setShowSidebar])
 
   const handleResizeStart = useCallback(
     (e: React.MouseEvent) => {
@@ -233,7 +205,7 @@ export default function Sidebar() {
             >
               <Image src={icon} w={20} h={20} />
               <Text span c="chatbox-primary" fz={16} lh="24px" fw={600} truncate>
-                Chatbox
+                Chatbox Lite
               </Text>
               {/\d/.test(versionHook.version) && (
                 <Text span c="chatbox-tertiary" size="sm">
@@ -255,20 +227,6 @@ export default function Sidebar() {
             shortcut={isSmallScreen ? undefined : ['mod', 'K']}
             onClick={handleOpenSearch}
           />
-          <SidebarNavRow
-            testId={TestId.sidebar.newImage}
-            label={t('Create Image')}
-            icon={IconPhotoPlus}
-            onClick={handleCreateNewPictureSession}
-          />
-          <SidebarNavRow
-            label={t('My Copilots')}
-            icon={IconMessageChatbot}
-            onClick={() => {
-              navigate({ to: '/copilots' })
-              closeOnSmallScreen()
-            }}
-          />
           <Box
             data-testid={TestId.sidebar.scrollDivider}
             aria-hidden="true"
@@ -287,28 +245,9 @@ export default function Sidebar() {
           <SessionList sessionListViewportRef={sessionListViewportRef} atTopStateChange={setIsSessionListAtTop} />
         </Flex>
 
-        <SidebarUpdateBanner />
-
-        <Box px="xs" pb="xs" className="empty:hidden">
-          <SidebarLowQuotaReminder />
-        </Box>
-
-        {showDesktopDownloadCard && (
-          <Box px="xs" pb="xs">
-            <SidebarDesktopDownloadCard />
-          </Box>
-        )}
-
         <Stack gap="xs" px="xs" pb="xs">
           <Divider />
-          {showDownloadApp && !showDesktopDownloadCard && (
-            <SidebarNavRow
-              testId={TestId.sidebar.downloadApp}
-              label={t('Download app')}
-              icon={IconDownload}
-              onClick={handleDownloadApp}
-            />
-          )}
+
           {isSmallScreen && <NewChatButton onClick={handleCreateNewSession} />}
           <Flex align="center" gap={2}>
             <Box flex={1} miw={0}>
@@ -337,18 +276,7 @@ export default function Sidebar() {
                 />
               </Tooltip>
             )}
-            {FORCE_ENABLE_DEV_PAGES && CHATBOX_BUILD_PLATFORM !== 'web' && (
-              <Tooltip label="Dev Tools" openDelay={500} withArrow>
-                <IconButton
-                  icon={IconCode}
-                  size={footerButtonSize}
-                  iconSize={footerIconSize}
-                  aria-label="Dev Tools"
-                  color="chatbox-tertiary"
-                  onClick={() => navigate({ to: '/dev' })}
-                />
-              </Tooltip>
-            )}
+
             <AboutButton
               versionHook={versionHook}
               size={footerButtonSize}

@@ -141,7 +141,7 @@ describe.each(drivers)('fork row commands on %s', (driver) => {
     expect((await h.activeMessages()).map((row) => row.id)).toEqual(['system', 'user', 'answer'])
   })
 
-  it('keeps inactive runtime generation locked and reports committed deletion scopes', async () => {
+  it('uses chat fork rules for legacy work sessions and reports committed deletion scopes', async () => {
     const initial = forkSource()
     initial.messages[2].generating = true
     initial.settings!.agentMode = { value: 'on', locked: false, lockReason: null }
@@ -155,7 +155,9 @@ describe.each(drivers)('fork row commands on %s', (driver) => {
     const guarded = new ForkService(h.service, { createId: () => 'unused', now: () => 10 }, () => ({
       activeGenerationMessageIds: new Set(['answer']),
     }))
-    await expect(guarded.switch('s', 'user', 'prev')).rejects.toThrow('generating')
+    await expect(guarded.switch('s', 'user', 'prev')).resolves.toBeUndefined()
+    expect((await h.activeMessages()).at(-1)?.id).toBe('answer')
+    await guarded.switch('s', 'user', 'next')
     const committed = vi.fn()
     await h.service.executeStructureCommand(
       's',

@@ -13,7 +13,7 @@ export function deriveSessionGenerationControl(thread: ThreadRow, runtimeRows: r
       thread.control.generatingAssistantCount > 0 ||
       thread.summary.generatingMessageCount > 0 ||
       cancellableMessageIds.length > 0,
-    awaitingPauseDecision: thread.summary.pausedMessageCount > 0,
+    awaitingPauseDecision: false,
     cancellableMessageIds,
   }
 }

@@ -1,4 +1,4 @@
-import NiceModal from '@ebay/nice-modal-react'
+import { trackListModelClick, trackSelectModelClick } from '@/analytics/model-selection'
 import { Combobox, Flex, SegmentedControl, Stack, Text, TextInput, useCombobox } from '@mantine/core'
 import { TestId } from '@shared/automation/testids'
 import { ModelProviderEnum } from '@shared/types'
@@ -20,13 +20,7 @@ import {
 } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Drawer } from 'vaul'
-import {
-  trackListModelClick,
-  trackProTrialClaimClick,
-  trackSelectModelClick,
-  trackUpgradeModelClick,
-} from '@/analytics/model-selection'
-import useChatboxAIModels from '@/hooks/useChatboxAIModels'
+
 import { useProviders } from '@/hooks/useProviders'
 import { useIsSmallScreen } from '@/hooks/useScreenChange'
 import { GLASS_HOST_CLASS } from '@/lib/glass-surface'
@@ -34,8 +28,7 @@ import { collapsedProvidersAtom } from '@/stores/atoms/uiAtoms'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { useUIStore } from '@/stores/uiStore'
 import { ScalableIcon } from '../common/ScalableIcon'
-import { ChatboxProviderRows } from './ChatboxProviderRows'
-import { buildChatboxAIGroupViews, modelMatchesSearch } from './chatboxCatalog'
+
 import {
   DESKTOP_DETAIL_CARD_GAP,
   DESKTOP_DETAIL_CARD_MARGIN,
@@ -43,7 +36,6 @@ import {
   DESKTOP_DETAIL_CARD_WIDTH,
   DESKTOP_DETAIL_VIEWPORT_MARGIN,
   DRAWER_SURFACE_STYLE,
-  EMPTY_MODEL_IDS,
   getModelSelectorFloatingSurfaceClass,
   HOVER_CLASS,
   MODEL_SELECTOR_SURFACE_CLASS,
@@ -51,10 +43,10 @@ import {
 } from './constants'
 import { DetailCard } from './DetailCard'
 import { filterModelsForSelector } from './filterModels'
+import { searchGenericModel } from './helpers'
 import { GenericProviderRows } from './GenericProviderRows'
-import { searchGenericModel, toProviderModelInfo } from './helpers'
-import type { ChatboxAIModel, DesktopDetailState, DetailModel, ModelSelectorV2Props } from './types'
-import { useChatboxAIProTrial } from './useChatboxAIProTrial'
+import { modelMatchesSearch } from './modelSearch'
+import type { DesktopDetailState, DetailModel, ModelSelectorV2Props } from './types'
 
 export const ModelSelectorV2 = forwardRef<HTMLDivElement, ModelSelectorV2Props>(
   (
@@ -77,12 +69,9 @@ export const ModelSelectorV2 = forwardRef<HTMLDivElement, ModelSelectorV2Props>(
     const { t } = useTranslation()
     const isMobile = useIsSmallScreen()
     const { providers, favoritedModels, favoriteModel, unfavoriteModel, isFavoritedModel } = useProviders()
-    const { chatboxAIModelList, chatboxAIModels } = useChatboxAIModels()
-    const proTrial = useChatboxAIProTrial(chatboxAIModelList?.license)
+
     const favoritedModelsSetting = useSettingsStore((state) => state.favoritedModels)
-    const chatboxAIExcludedModels = useSettingsStore(
-      (state) => state.providers?.[ModelProviderEnum.ChatboxAI]?.excludedModels || EMPTY_MODEL_IDS
-    )
+
     const [collapsedProviders, setCollapsedProviders] = useAtom(collapsedProvidersAtom)
     const activeTab = useUIStore((state) => state.modelSelectorTab)
     const setActiveTab = useUIStore((state) => state.setModelSelectorTab)
@@ -135,35 +124,8 @@ export const ModelSelectorV2 = forwardRef<HTMLDivElement, ModelSelectorV2Props>(
       }
     }, [desktopDetail])
 
-    const chatboxProvider = useMemo(
-      () =>
-        chatboxAIModelList
-          ? {
-              id: chatboxAIModelList.provider.id,
-              name: chatboxAIModelList.provider.name,
-            }
-          : providers.find((provider) => provider.id === ModelProviderEnum.ChatboxAI),
-      [chatboxAIModelList, providers]
-    )
-
     const genericProviders = useMemo(() => {
-      const manifestBackedChatboxProviders =
-        !chatboxAIModelList && chatboxAIModels.length > 0
-          ? [
-              {
-                id: ModelProviderEnum.ChatboxAI,
-                name: 'Chatbox AI',
-                isCustom: false,
-                models: chatboxAIModels,
-              },
-            ]
-          : []
-      const sourceProviders = chatboxAIModelList
-        ? providers.filter((provider) => provider.id !== ModelProviderEnum.ChatboxAI)
-        : [
-            ...manifestBackedChatboxProviders,
-            ...providers.filter((provider) => provider.id !== ModelProviderEnum.ChatboxAI),
-          ]
+      const sourceProviders = providers
 
       return sourceProviders
         .map((provider) => ({
@@ -175,27 +137,7 @@ export const ModelSelectorV2 = forwardRef<HTMLDivElement, ModelSelectorV2Props>(
           ),
         }))
         .filter((provider) => provider.models?.length)
-    }, [chatboxAIModelList, chatboxAIModels, providers, modelFilter, search])
-
-    const chatboxFilter = useCallback(
-      (model: ChatboxAIModel) =>
-        !chatboxAIExcludedModels.includes(model.modelId) &&
-        (!modelFilter || modelFilter(toProviderModelInfo(model), ModelProviderEnum.ChatboxAI)),
-      [chatboxAIExcludedModels, modelFilter]
-    )
-
-    const chatboxGroups = chatboxAIModelList
-      ? buildChatboxAIGroupViews({
-          catalog: chatboxAIModelList,
-          search,
-          expandedAdvanced: advancedExpanded,
-          collapsedGroupIds,
-          modelFilter: (modelId) => {
-            const model = chatboxAIModelList.models[modelId]
-            return model ? chatboxFilter(model) : false
-          },
-        })
-      : []
+    }, [providers, modelFilter, search])
 
     const clearDesktopDetailCloseTimer = () => {
       if (desktopDetailCloseTimerRef.current) {
@@ -255,17 +197,6 @@ export const ModelSelectorV2 = forwardRef<HTMLDivElement, ModelSelectorV2Props>(
       onSelect?.(providerId, modelId)
     }
 
-    const claimProTrial = (position: 'list_model' | 'upgrade_modal', modelId?: string) => {
-      // The claim dialog must not open underneath the selector dropdown or drawer.
-      clearDesktopDetailCloseTimer()
-      setDesktopDetail(null)
-      combobox.closeDropdown()
-      setMobileOpen(false)
-      setMobileDetail(null)
-      if (pageName) trackProTrialClaimClick(pageName, position, modelId)
-      void NiceModal.show('pro-trial-claim').catch(() => undefined)
-    }
-
     const handleDisabledSelect = (modelId: string) => {
       if (pageName) {
         trackSelectModelClick(pageName, modelId, 'failed')
@@ -307,15 +238,6 @@ export const ModelSelectorV2 = forwardRef<HTMLDivElement, ModelSelectorV2Props>(
       [favoritedModelsSetting, isFavoritedModel]
     )
 
-    const toggleGroup = (groupId: string) => {
-      setCollapsedGroupIds((prev) => {
-        const next = new Set(prev)
-        if (next.has(groupId)) next.delete(groupId)
-        else next.add(groupId)
-        return next
-      })
-    }
-
     const searchBox = (
       <Flex
         align="center"
@@ -349,33 +271,11 @@ export const ModelSelectorV2 = forwardRef<HTMLDivElement, ModelSelectorV2Props>(
 
     const visibleModelCount = useMemo(() => {
       const favoriteOnly = activeTab === 'favorite'
-      let chatboxCount = 0
-
-      if (chatboxAIModelList && chatboxProvider) {
-        const chatboxFavoriteSet = new Set(
-          (favoritedModelsSetting || [])
-            .filter((favorite) => favorite.provider === chatboxProvider.id)
-            .map((favorite) => favorite.model)
-        )
-
-        chatboxCount = chatboxAIModelList.groups.reduce(
-          (count, group) =>
-            count +
-            group.modelIds.filter((modelId) => {
-              const model = chatboxAIModelList.models[modelId]
-              if (!model || !chatboxFilter(model)) return false
-              if (favoriteOnly && !chatboxFavoriteSet.has(modelId)) return false
-              return modelMatchesSearch(model, search, chatboxProvider.name)
-            }).length,
-          0
-        )
-      }
-
       const genericCount = favoriteOnly
         ? (favoritedModels || []).filter((favorite) => {
             const provider = favorite.provider
             const model = favorite.model
-            if (!provider || !model || (chatboxAIModelList && provider.id === ModelProviderEnum.ChatboxAI)) return false
+            if (!provider || !model || provider.id === ModelProviderEnum.ChatboxAI) return false
             if (!modelMatchesSearch({ modelId: model.modelId, modelName: model.nickname }, search, provider.name)) {
               return false
             }
@@ -383,18 +283,8 @@ export const ModelSelectorV2 = forwardRef<HTMLDivElement, ModelSelectorV2Props>(
           }).length
         : genericProviders.reduce((count, provider) => count + (provider.models?.length || 0), 0)
 
-      return chatboxCount + genericCount
-    }, [
-      activeTab,
-      chatboxAIModelList,
-      chatboxFilter,
-      chatboxProvider,
-      favoritedModels,
-      favoritedModelsSetting,
-      genericProviders,
-      modelFilter,
-      search,
-    ])
+      return genericCount
+    }, [activeTab, favoritedModels, favoritedModelsSetting, genericProviders, modelFilter, search])
 
     const content = (
       <Stack
@@ -472,123 +362,32 @@ export const ModelSelectorV2 = forwardRef<HTMLDivElement, ModelSelectorV2Props>(
               {autoText || t('Auto')}
             </button>
           )}
-          {visibleModelCount === 0 ? (
-            showAuto && activeTab === 'all' ? null : (
-              <Stack gap="xs" py="md" px="sm" align="center">
-                <Text c="chatbox-tertiary" size="xs">
-                  {activeTab === 'favorite' ? t('No favorite models') : t('No eligible models available')}
-                </Text>
-              </Stack>
-            )
-          ) : activeTab === 'favorite' ? (
-            <>
-              {chatboxAIModelList && chatboxProvider && (
-                <ChatboxProviderRows
-                  catalog={chatboxAIModelList}
-                  provider={chatboxProvider}
-                  favoriteOnly
-                  favorites={favoritedModelsSetting}
-                  search={search}
-                  groups={chatboxGroups}
-                  collapsed={collapsedProviders[chatboxProvider.id] || false}
-                  collapsedGroupIds={collapsedGroupIds}
-                  advancedExpanded={advancedExpanded}
-                  selectedProviderId={selectedProviderId}
-                  selectedModelId={selectedModelId}
-                  isMobile={isMobile}
-                  modelDisabledCheck={modelDisabledCheck}
-                  chatboxFilter={chatboxFilter}
-                  isFavorited={isFavorited}
-                  onToggleProvider={() => toggleProvider(chatboxProvider.id)}
-                  onToggleGroup={toggleGroup}
-                  onSetAdvancedExpanded={setAdvancedExpanded}
-                  onSelect={handleSelect}
-                  onToggleFavorite={toggleFavorite}
-                  onShowMobileDetail={setMobileDetail}
-                  onDesktopDetailOpen={openDesktopDetail}
-                  onDesktopDetailClose={scheduleDesktopDetailClose}
-                  onDisabledSelect={handleDisabledSelect}
-                  onClaimProTrial={() => claimProTrial('list_model', selectedModelId)}
-                  pageName={pageName}
-                />
-              )}
-              <GenericProviderRows
-                hasChatboxCatalog={!!chatboxAIModelList}
-                favoriteOnly
-                favoritedModels={favoritedModels}
-                genericProviders={genericProviders}
-                collapsedProviders={collapsedProviders}
-                search={search}
-                selectedProviderId={selectedProviderId}
-                selectedModelId={selectedModelId}
-                isMobile={isMobile}
-                modelFilter={modelFilter}
-                modelDisabledCheck={modelDisabledCheck}
-                isFavorited={isFavorited}
-                onToggleProvider={toggleProvider}
-                onSelect={handleSelect}
-                onToggleFavorite={toggleFavorite}
-                onShowMobileDetail={setMobileDetail}
-                onDesktopDetailOpen={openDesktopDetail}
-                onDesktopDetailClose={scheduleDesktopDetailClose}
-                onDisabledSelect={handleDisabledSelect}
-              />
-            </>
-          ) : (
-            <>
-              {chatboxAIModelList && chatboxProvider && (
-                <ChatboxProviderRows
-                  catalog={chatboxAIModelList}
-                  provider={chatboxProvider}
-                  favoriteOnly={false}
-                  favorites={favoritedModelsSetting}
-                  search={search}
-                  groups={chatboxGroups}
-                  collapsed={collapsedProviders[chatboxProvider.id] || false}
-                  collapsedGroupIds={collapsedGroupIds}
-                  advancedExpanded={advancedExpanded}
-                  selectedProviderId={selectedProviderId}
-                  selectedModelId={selectedModelId}
-                  isMobile={isMobile}
-                  modelDisabledCheck={modelDisabledCheck}
-                  chatboxFilter={chatboxFilter}
-                  isFavorited={isFavorited}
-                  onToggleProvider={() => toggleProvider(chatboxProvider.id)}
-                  onToggleGroup={toggleGroup}
-                  onSetAdvancedExpanded={setAdvancedExpanded}
-                  onSelect={handleSelect}
-                  onToggleFavorite={toggleFavorite}
-                  onShowMobileDetail={setMobileDetail}
-                  onDesktopDetailOpen={openDesktopDetail}
-                  onDesktopDetailClose={scheduleDesktopDetailClose}
-                  onDisabledSelect={handleDisabledSelect}
-                  onClaimProTrial={() => claimProTrial('list_model', selectedModelId)}
-                  pageName={pageName}
-                />
-              )}
-              <GenericProviderRows
-                hasChatboxCatalog={!!chatboxAIModelList}
-                favoriteOnly={false}
-                favoritedModels={favoritedModels}
-                genericProviders={genericProviders}
-                collapsedProviders={collapsedProviders}
-                search={search}
-                selectedProviderId={selectedProviderId}
-                selectedModelId={selectedModelId}
-                isMobile={isMobile}
-                modelFilter={modelFilter}
-                modelDisabledCheck={modelDisabledCheck}
-                isFavorited={isFavorited}
-                onToggleProvider={toggleProvider}
-                onSelect={handleSelect}
-                onToggleFavorite={toggleFavorite}
-                onShowMobileDetail={setMobileDetail}
-                onDesktopDetailOpen={openDesktopDetail}
-                onDesktopDetailClose={scheduleDesktopDetailClose}
-                onDisabledSelect={handleDisabledSelect}
-              />
-            </>
+          {visibleModelCount === 0 && (
+            <Text size="sm" c="chatbox-tertiary" p="md" ta="center">
+              {t(search ? 'No models found matching your search' : 'No models available')}
+            </Text>
           )}
+          <GenericProviderRows
+            hasChatboxCatalog={false}
+            favoriteOnly={activeTab === 'favorite'}
+            favoritedModels={favoritedModels}
+            genericProviders={genericProviders}
+            collapsedProviders={collapsedProviders}
+            search={search}
+            selectedProviderId={selectedProviderId}
+            selectedModelId={selectedModelId}
+            isMobile={isMobile}
+            modelFilter={modelFilter}
+            modelDisabledCheck={modelDisabledCheck}
+            isFavorited={isFavorited}
+            onToggleProvider={toggleProvider}
+            onSelect={handleSelect}
+            onToggleFavorite={toggleFavorite}
+            onShowMobileDetail={setMobileDetail}
+            onDesktopDetailOpen={openDesktopDetail}
+            onDesktopDetailClose={scheduleDesktopDetailClose}
+            onDisabledSelect={handleDisabledSelect}
+          />
         </div>
         {!isMobile && searchPosition === 'bottom' && searchBox}
       </Stack>
@@ -637,22 +436,7 @@ export const ModelSelectorV2 = forwardRef<HTMLDivElement, ModelSelectorV2Props>(
                 <Stack gap={0}>
                   <div aria-hidden className="mx-auto my-3 h-1 w-14 rounded-full bg-chatbox-tint-tertiary opacity-70" />
                   <Drawer.Title className="hidden">{t('Model details')}</Drawer.Title>
-                  {mobileDetail && (
-                    <DetailCard
-                      model={mobileDetail}
-                      pricingLink={chatboxAIModelList?.links?.modelPricing}
-                      upgradeLink={chatboxAIModelList?.links?.upgrade}
-                      onClose={() => setMobileDetail(null)}
-                      onUpgradeClick={() => {
-                        if (pageName) trackUpgradeModelClick(pageName, 'upgrade_modal', mobileDetail.modelId)
-                        proTrial.reportUpgradeClick(mobileDetail.modelId)
-                      }}
-                      onClaimProTrial={
-                        proTrial.canClaim ? () => claimProTrial('upgrade_modal', mobileDetail.modelId) : undefined
-                      }
-                      mobile
-                    />
-                  )}
+                  {mobileDetail && <DetailCard model={mobileDetail} onClose={() => setMobileDetail(null)} mobile />}
                   <div className="h-[--mobile-safe-area-inset-bottom] min-h-4" />
                 </Stack>
               </Drawer.Content>
@@ -705,18 +489,7 @@ export const ModelSelectorV2 = forwardRef<HTMLDivElement, ModelSelectorV2Props>(
               onMouseEnter={clearDesktopDetailCloseTimer}
               onMouseLeave={scheduleDesktopDetailClose}
             >
-              <DetailCard
-                model={desktopDetail.model}
-                pricingLink={desktopDetail.pricingLink}
-                upgradeLink={desktopDetail.upgradeLink}
-                onUpgradeClick={() => {
-                  if (pageName) trackUpgradeModelClick(pageName, 'upgrade_modal', desktopDetail.model.modelId)
-                  proTrial.reportUpgradeClick(desktopDetail.model.modelId)
-                }}
-                onClaimProTrial={
-                  proTrial.canClaim ? () => claimProTrial('upgrade_modal', desktopDetail.model.modelId) : undefined
-                }
-              />
+              <DetailCard model={desktopDetail.model} />
             </div>
           )}
         </Combobox.Dropdown>

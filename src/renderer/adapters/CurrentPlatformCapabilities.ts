@@ -1,5 +1,5 @@
-import type { PlatformCapabilitiesPort, PlatformCapability } from '@chatbox/core/ports'
 import platform from '@/platform'
+import type { PlatformCapabilitiesPort, PlatformCapability } from '@chatbox/core/ports'
 
 export interface CurrentPlatformCapabilitySource {
   isDesktopLike: boolean
@@ -15,6 +15,6 @@ export class CurrentPlatformCapabilities implements PlatformCapabilitiesPort {
   constructor(private readonly source: CurrentPlatformCapabilitySource = platform) {}
 
   supports(capability: PlatformCapability): boolean {
-    return capability === 'agent-mode' && (this.source.isDesktopLike || this.source.type === 'mobile')
+    return false
   }
 }

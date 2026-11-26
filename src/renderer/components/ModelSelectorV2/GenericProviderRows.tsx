@@ -1,11 +1,11 @@
+import { GLASS_BAR_CLASS } from '@/lib/glass-surface'
 import type { ProviderModelInfo } from '@shared/types'
 import { ModelProviderEnum } from '@shared/types'
 import clsx from 'clsx'
 import { useTranslation } from 'react-i18next'
-import { GLASS_BAR_CLASS } from '@/lib/glass-surface'
-import { modelMatchesSearch } from './chatboxCatalog'
 import { groupFavorites } from './helpers'
 import { ModelRow } from './ModelRow'
+import { modelMatchesSearch } from './modelSearch'
 import { ProviderRowHeader } from './ProviderRowHeader'
 import type { DetailModel, FavoriteModel, FilteredProvider } from './types'
 

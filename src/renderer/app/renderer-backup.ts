@@ -1,3 +1,8 @@
+import { createRendererBackupResources } from '@/adapters/backup-resources'
+import { CurrentSessionRecordStore } from '@/adapters/CurrentSessionRecordStore'
+import { type ArchiveSource, type DownloadProgress, downloadDeepSeekArchive } from '@/adapters/deepseek-download'
+import platform from '@/platform'
+import { IndexedDBBackupWorkspace } from '@/storage/BackupWorkspace'
 import { SessionRowMigration, SessionRowWriteQueue } from '@chatbox/core/application/session'
 import { type BackupExportFormat, type BackupExportResult, exportBackupStream } from '@chatbox/core/backup-export'
 import {
@@ -22,12 +27,7 @@ import {
 import type { ByteSource } from '@chatbox/core/io'
 import type { KeyValueStoragePort } from '@chatbox/core/ports'
 import { v4 as uuid } from 'uuid'
-import { createRendererBackupResources } from '@/adapters/backup-resources'
-import { CurrentSessionRecordStore } from '@/adapters/CurrentSessionRecordStore'
-import { type ArchiveSource, type DownloadProgress, downloadDeepSeekArchive } from '@/adapters/deepseek-download'
-import platform from '@/platform'
-import { IndexedDBBackupWorkspace } from '@/storage/BackupWorkspace'
-import { reloadCopilotDefinitions, rendererMemoryService } from '@/stores/memoryRuntime'
+
 import { rendererApplication } from './renderer-application'
 
 export interface RendererBackupSnapshot {
@@ -315,8 +315,7 @@ class RendererBackupService {
       if (operation !== 'export') {
         const refreshes = await Promise.allSettled([
           rendererApplication.settings.reloadFromStorage(),
-          reloadCopilotDefinitions(),
-          rendererMemoryService.reload(),
+
           rendererApplication.sessions.reloadFromStorage(),
         ])
         const imported = result ?? partial

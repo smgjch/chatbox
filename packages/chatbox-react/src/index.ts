@@ -2,50 +2,49 @@
 
 export {
   ChatboxApplicationContext,
-  type ChatboxReactApplication,
   useChatboxApplication,
+  type ChatboxReactApplication,
 } from './application-context'
 export { useChatboxAuthInfo, useChatboxLastUsedModel, useChatboxSettings } from './application-hooks'
 export { ChatboxProvider, type ChatboxProviderProps } from './ChatboxProvider'
+
 export {
-  createCopilotQueryDefinitions,
-  FEATURED_COPILOTS_PAGE_SIZE,
-  useCopilotPreferences,
-  useCopilots,
-  useCopilotTags,
-  useFeaturedCopilots,
-} from './copilots'
-export {
+  createChatApplication,
   type ChatApplication,
   type CreateChatApplicationOptions,
-  createChatApplication,
 } from './createChatApplication'
 export { createGenerationHooks } from './generation-hooks'
-export {
-  createImageGenerationHooks,
-  getImageGenerationQueryBridge,
-  ImageGenerationQueryBridge,
-  ImageGenerationQueryKeys,
-  type InfiniteImageGenerationData,
-  updateImageGenerationHistory,
-} from './image-generation-hooks'
+
 export {
   ApplicationQueryBridge,
+  QueryKeys,
+  SessionQueryBridge,
   bindReactQueryHostLifecycle,
   createChatQueryClient,
   createSessionHooks,
   createSessionQueryDefinitions,
   type HostBooleanStateSource,
   type InfiniteSessionData,
-  QueryKeys,
   type ReactQueryHostLifecycle,
-  SessionQueryBridge,
   type SessionQueryDefinitions,
   type SessionQuerySource,
 } from './query'
 export {
   AUTH_INFO_PERSIST_KEY,
   AUTH_INFO_PERSIST_VERSION,
+  LAST_USED_MODEL_PERSIST_KEY,
+  LAST_USED_MODEL_PERSIST_VERSION,
+  createAuthInfoStore,
+  createLastUsedModelStore,
+  createSettingsStore,
+  selectLanguage,
+  selectMcpSettings,
+  selectSettings,
+  selectSettingsHydrationStatus,
+  selectTheme,
+  useAuthInfoStore,
+  useLastUsedModelStore,
+  useSettingsStore,
   type AuthInfoActions,
   type AuthInfoPersistedState,
   type AuthInfoState,
@@ -54,11 +53,6 @@ export {
   type AuthTokens,
   type CreateAuthInfoStoreOptions,
   type CreateLastUsedModelStoreOptions,
-  createAuthInfoStore,
-  createLastUsedModelStore,
-  createSettingsStore,
-  LAST_USED_MODEL_PERSIST_KEY,
-  LAST_USED_MODEL_PERSIST_VERSION,
   type LastUsedModel,
   type LastUsedModelActions,
   type LastUsedModelState,
@@ -71,12 +65,4 @@ export {
   type SettingsStoreMetadata,
   type SettingsStoreSetStateUpdate,
   type SettingsStoreState,
-  selectLanguage,
-  selectMcpSettings,
-  selectSettings,
-  selectSettingsHydrationStatus,
-  selectTheme,
-  useAuthInfoStore,
-  useLastUsedModelStore,
-  useSettingsStore,
 } from './stores'

@@ -133,7 +133,6 @@ it('disables conversation-only export when every conversation is unchecked and s
   fireEvent.click(screen.getByRole('button', { name: 'Export Data' }))
   const dialog = within(screen.getByRole('dialog', { name: 'Export Data' }))
   fireEvent.click(dialog.getByRole('checkbox', { name: 'Settings' }))
-  fireEvent.click(dialog.getByRole('checkbox', { name: 'Copilots' }))
   fireEvent.click(await dialog.findByRole('checkbox', { name: 'Alpha' }))
   fireEvent.click(dialog.getByRole('checkbox', { name: 'Beta' }))
   expect((dialog.getByRole('button', { name: 'Export Data' }) as HTMLButtonElement).disabled).toBe(true)
@@ -160,7 +159,6 @@ it.each(['v3', 'v2'] as const)('passes the selected conversations and categories
     expect(dialog.getByText(/Use V2 to import this backup into an older Chatbox version/)).toBeTruthy()
   }
   fireEvent.click(dialog.getByRole('checkbox', { name: 'Settings' }))
-  fireEvent.click(dialog.getByRole('checkbox', { name: 'Copilots' }))
   await dialog.findByRole('checkbox', { name: 'Beta' })
   fireEvent.click(dialog.getByRole('button', { name: 'Deselect all conversations' }))
   const choice = await dialog.findByRole('checkbox', { name: 'Beta' })

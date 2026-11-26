@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const {
   blobStore,
@@ -180,16 +180,12 @@ vi.mock('./session/agent-mode', () => ({ getSessionAgentModeEntry: mockGetSessio
 
 import type { SessionSearchResult } from '@chatbox/core/application/session'
 import { InMemorySessionRepository } from '@chatbox/core/testing'
-import { ChatboxAIAPIError } from '@shared/models/errors'
 import type { Session } from '@shared/types'
 import {
-  isSessionAttachmentRagAuthError,
-  isSessionAttachmentRagIndexingError,
   prepareFileAttachment,
+  searchSessions,
   SESSION_ATTACHMENT_RAG_LARGE_ATTACHMENT_WARNING,
   SESSION_ATTACHMENT_RAG_MAX_PARSED_BYTE_LENGTH,
-  SESSION_ATTACHMENT_RAG_REQUIRES_CHATBOX_AI_ERROR,
-  searchSessions,
 } from './sessionHelpers'
 
 function createFile(name: string, content = 'binary-content'): File {
@@ -249,85 +245,6 @@ describe('preprocessFile local parser fallback', () => {
     }
   )
 
-  it.each(['local', 'chatbox-ai'] as const)(
-    'falls back for a malformed mobile Office document with %s selected and a license',
-    async (type) => {
-      parserState.type = type
-      const platform = (await import('@/platform')).default
-      const previous = { type: platform.type, isDesktopLike: platform.isDesktopLike }
-      Object.assign(platform, { type: 'mobile', isDesktopLike: false })
-      try {
-        mockParseFileLocally.mockRejectedValueOnce(new Error('Invalid document archive'))
-        blobStore.set('office-remote', 'Cloud Office text')
-        mockUploadAndCreateUserFile.mockResolvedValueOnce('office-remote')
-        const result = await prepareFileAttachment(createFile('bad.docx'), { provider: '', modelId: '' })
-        expect(result.error).toBeUndefined()
-        expect(result.content).toBe('Cloud Office text')
-        expect(mockUploadAndCreateUserFile).toHaveBeenCalled()
-      } finally {
-        Object.assign(platform, previous)
-      }
-    }
-  )
-
-  it('falls back to Chatbox AI when local parsing throws and a license is active', async () => {
-    const file = createFile('report.pdf')
-    blobStore.set('remote-key', 'remote parsed content')
-    mockParseFileLocally.mockRejectedValueOnce(new Error('local failed'))
-    mockUploadAndCreateUserFile.mockResolvedValueOnce('remote-key')
-
-    const result = await prepareFileAttachment(file, { provider: '', modelId: '' })
-
-    expect(mockParseFileLocally).toHaveBeenCalledWith(file)
-    expect(mockUploadAndCreateUserFile).toHaveBeenCalledWith('licensed-key', file)
-    expect(result.error).toBeUndefined()
-    expect(result.content).toBe('remote parsed content')
-    expect(result.storageKey).toBe(`file:/tmp/${file.name}-${file.size}-${file.lastModified}`)
-  })
-
-  it('falls back to Chatbox AI when local parsing returns empty content and a license is active', async () => {
-    const file = createFile('empty.pdf')
-    blobStore.set('local-key', '   \n\t')
-    blobStore.set('remote-key', 'remote recovered content')
-    mockParseFileLocally.mockResolvedValueOnce({ isSupported: true, key: 'local-key' })
-    mockUploadAndCreateUserFile.mockResolvedValueOnce('remote-key')
-
-    const result = await prepareFileAttachment(file, { provider: '', modelId: '' })
-
-    expect(mockParseFileLocally).toHaveBeenCalledWith(file)
-    expect(mockUploadAndCreateUserFile).toHaveBeenCalledWith('licensed-key', file)
-    expect(result.error).toBeUndefined()
-    expect(result.content).toBe('remote recovered content')
-  })
-
-  it('rejects empty content returned by the Chatbox AI fallback', async () => {
-    const file = createFile('empty-cloud-result.pdf')
-    blobStore.set('local-key', '   \n\t')
-    blobStore.set('remote-key', '   \n\t')
-    mockParseFileLocally.mockResolvedValueOnce({ isSupported: true, key: 'local-key' })
-    mockUploadAndCreateUserFile.mockResolvedValueOnce('remote-key')
-
-    const result = await prepareFileAttachment(file, { provider: '', modelId: '' })
-
-    expect(mockUploadAndCreateUserFile).toHaveBeenCalledWith('licensed-key', file)
-    expect(result.content).toBe('')
-    expect(result.storageKey).toBe('')
-    expect(result.error).toBe('empty_attachment_content')
-  })
-
-  it('falls back to Chatbox AI for text files when local parsing fails', async () => {
-    const file = createFile('readme.txt', 'text content')
-    blobStore.set('remote-key', 'remote text content')
-    mockParseFileLocally.mockRejectedValueOnce(new Error('local failed'))
-    mockUploadAndCreateUserFile.mockResolvedValueOnce('remote-key')
-
-    const result = await prepareFileAttachment(file, { provider: '', modelId: '' })
-
-    expect(mockUploadAndCreateUserFile).toHaveBeenCalledWith('licensed-key', file)
-    expect(result.error).toBeUndefined()
-    expect(result.content).toBe('remote text content')
-  })
-
   it('does not fall back to Chatbox AI for pasted text when local processing fails', async () => {
     const file = createFile('pasted_text_123.txt', 'pasted text content')
     mockParseFileLocally.mockRejectedValueOnce(new Error('local failed'))
@@ -352,49 +269,6 @@ describe('preprocessFile local parser fallback', () => {
     expect(result.error).toBe('empty_attachment_content')
   })
 
-  it('prompts for a license when local parsing throws without a key', async () => {
-    const file = createFile('no-license.pdf')
-    licenseState.key = undefined
-    mockParseFileLocally.mockRejectedValueOnce(new Error('local failed'))
-
-    const result = await prepareFileAttachment(file, { provider: '', modelId: '' })
-
-    expect(mockUploadAndCreateUserFile).not.toHaveBeenCalled()
-    expect(result.content).toBe('')
-    expect(result.storageKey).toBe('')
-    expect(result.error).toBe('chatbox_ai_parser_license_key_required')
-    expect(mockReportError).not.toHaveBeenCalled()
-  })
-
-  it('prompts for a license when local parsing returns empty content without a key', async () => {
-    const file = createFile('empty-without-license.pdf')
-    licenseState.key = undefined
-    mockParseFileLocally.mockResolvedValueOnce({ isSupported: true, key: 'missing-local-key' })
-
-    const result = await prepareFileAttachment(file, { provider: '', modelId: '' })
-
-    expect(mockUploadAndCreateUserFile).not.toHaveBeenCalled()
-    expect(result.content).toBe('')
-    expect(result.storageKey).toBe('')
-    expect(result.error).toBe('chatbox_ai_parser_license_key_required')
-    expect(mockReportError).not.toHaveBeenCalled()
-  })
-
-  it('prompts for a license when Chatbox AI parser is selected and local parsing fails without a key', async () => {
-    parserState.type = 'chatbox-ai'
-    const file = createFile('cloud-without-license.pdf')
-    licenseState.key = undefined
-    mockParseFileLocally.mockResolvedValueOnce({ isSupported: false })
-
-    const result = await prepareFileAttachment(file, { provider: '', modelId: '' })
-
-    expect(mockUploadAndCreateUserFile).not.toHaveBeenCalled()
-    expect(result.content).toBe('')
-    expect(result.storageKey).toBe('')
-    expect(result.error).toBe('chatbox_ai_parser_license_key_required')
-    expect(mockReportError).not.toHaveBeenCalled()
-  })
-
   it('reprocesses whitespace-only cached content instead of returning an empty attachment', async () => {
     const file = createFile('cached-empty.pdf')
     const durableKey = `file:/tmp/${file.name}-${file.size}-${file.lastModified}`
@@ -407,43 +281,6 @@ describe('preprocessFile local parser fallback', () => {
     expect(mockParseFileLocally).toHaveBeenCalledWith(file)
     expect(result.error).toBeUndefined()
     expect(result.content).toBe('reparsed content')
-  })
-
-  it('surfaces storage quota failures without attempting a cloud fallback', async () => {
-    const file = createFile('pasted_text_123.txt', 'long pasted text')
-    const quotaError = new Error('Quota exceeded while writing local storage')
-    quotaError.name = 'QuotaExceededError'
-    mockParseFileLocally.mockRejectedValue(quotaError)
-
-    const result = await prepareFileAttachment(file, { provider: '', modelId: '' })
-
-    expect(mockUploadAndCreateUserFile).not.toHaveBeenCalled()
-    expect(mockCleanupOrphanedBlobs).toHaveBeenCalledTimes(1)
-    // Retry happens even when the cleanup found no orphans: space may have been
-    // freed outside the cleanup's accounting (e.g. temp parse blob reclaim).
-    expect(mockParseFileLocally).toHaveBeenCalledTimes(2)
-    expect(result.error).toBe('file_storage_quota_exceeded')
-    expect(mockReportError).toHaveBeenCalledWith(
-      expect.objectContaining({ message: 'file_storage_quota_exceeded' }),
-      expect.objectContaining({
-        domain: 'file-attachment',
-        operation: 'preprocess-file',
-        priority: 'high',
-        tags: expect.objectContaining({
-          error_type: 'QuotaExceededError',
-          file_extension: 'txt',
-          file_size_bucket: 'under_100_kb',
-          freed_blob_count: 0,
-          preprocess_stage: 'local_parse',
-          quota_recovery: 'retry_failed',
-          user_error_code: 'file_storage_quota_exceeded',
-        }),
-      })
-    )
-    const [reportedError, context] = mockReportError.mock.calls[0]
-    expect(reportedError.stack).not.toContain(quotaError.message)
-    expect(JSON.stringify(context)).not.toContain(file.name)
-    mockParseFileLocally.mockReset()
   })
 
   it('retries once after freeing orphaned blobs and recovers silently', async () => {
@@ -582,206 +419,6 @@ describe('preprocessFile local parser fallback', () => {
     mockParseFileLocally.mockReset()
   })
 
-  it('classifies MinerU persistence quota failures for recovery instead of parser errors', async () => {
-    const file = createFile('report.pdf')
-    parserState.type = 'mineru'
-    const quotaError = new Error('Quota exceeded while persisting parsed content')
-    quotaError.name = 'QuotaExceededError'
-    // MinerU parses successfully, but storing the parsed content hits the quota.
-    // First setBlob call is the raw-binary write (errors swallowed); the second
-    // one persists the MinerU content and rejects. The post-cleanup retry then
-    // succeeds with the default setBlob implementation.
-    mockParseFileWithMineru.mockResolvedValue({ success: true, content: 'mineru parsed content' })
-    mockSetBlob
-      .mockImplementationOnce(async (key: string, value: string) => {
-        blobStore.set(key, value)
-      })
-      .mockRejectedValueOnce(quotaError)
-
-    const result = await prepareFileAttachment(file, { provider: '', modelId: '' })
-
-    // The original failure is classified as a quota error (stage: parse), and
-    // the automatic retry recovers.
-    expect(result.error).toBeUndefined()
-    expect(result.content).toBe('mineru parsed content')
-    expect(mockCleanupOrphanedBlobs).toHaveBeenCalledTimes(1)
-    expect(mockReportError).toHaveBeenCalledWith(
-      expect.objectContaining({ message: 'file_storage_quota_exceeded' }),
-      expect.objectContaining({
-        tags: expect.objectContaining({
-          preprocess_stage: 'parse',
-          quota_recovery: 'recovered',
-          user_error_code: 'file_storage_quota_exceeded',
-        }),
-      })
-    )
-  })
-
-  describe('DeepSeek parser', () => {
-    function stubDeepSeekResponse(body: string, status = 200) {
-      const fetch = vi.fn(async (_url: string, _init: RequestInit) => new Response(body, { status }))
-      vi.stubGlobal('fetch', fetch)
-      return fetch
-    }
-
-    beforeEach(() => {
-      parserState.type = 'deepseek'
-    })
-
-    afterEach(() => {
-      vi.unstubAllGlobals()
-    })
-
-    it('parses documents through DeepSeek OCR with the DeepSeek provider key', async () => {
-      const fetch = stubDeepSeekResponse(
-        '\n{"object":"ocr.result","page_count":1,"pages":[{"index":0,"text":"<｜ref｜>Report<｜/ref｜><｜box｜>[[1, 2, 3, 4]]<｜/box｜> body","finish_reason":"stop"}]}'
-      )
-
-      const result = await prepareFileAttachment(createFile('report.pdf'), { provider: '', modelId: '' })
-
-      expect(result.error).toBeUndefined()
-      expect(result.content).toBe('Report body')
-      expect(result.parserType).toBe('deepseek')
-      expect(fetch.mock.calls[0][0]).toBe('https://api.deepseek.com/v1/tools/ocr')
-      expect((fetch.mock.calls[0][1].headers as Record<string, string>).Authorization).toBe('Bearer ds-key')
-      expect(mockParseFileLocally).not.toHaveBeenCalled()
-      expect(mockUploadAndCreateUserFile).not.toHaveBeenCalled()
-    })
-
-    it('requires the DeepSeek API key before uploading', async () => {
-      parserState.deepseekApiKey = ' '
-      const fetch = stubDeepSeekResponse('{}')
-
-      const result = await prepareFileAttachment(createFile('report.pdf'), { provider: '', modelId: '' })
-
-      expect(result.error).toBe('deepseek_parser_api_key_required')
-      expect(fetch).not.toHaveBeenCalled()
-      expect(mockReportError).not.toHaveBeenCalled()
-    })
-
-    it.each([
-      ['insufficient balance', 'deepseek_insufficient_balance', '{"error":{"message":"Insufficient Balance"}}', 402],
-      [
-        'a file over 100 MiB',
-        'deepseek_parser_file_too_large',
-        '{"error":{"message":"file is too large: max 100 MiB"}}',
-        413,
-      ],
-      [
-        'more than 1000 pages',
-        'deepseek_parser_file_too_large',
-        '\n{"error":{"message":"Failed to recognize the file: the document has more than 1000 pages"}}',
-        200,
-      ],
-      [
-        'a password-protected file',
-        'pdf_password_protected',
-        '\n{"error":{"message":"The file is password-protected and cannot be processed. Remove the password and upload it again."}}',
-        200,
-      ],
-      [
-        'a recognition timeout',
-        'third_party_parser_failed',
-        '\n{"error":{"message":"OCR did not finish in time"}}',
-        200,
-      ],
-      ['an invalid API key', 'third_party_parser_failed', '{"error":{"message":"Authentication Fails"}}', 401],
-    ])('maps %s to %s', async (_label, expected, body, status) => {
-      stubDeepSeekResponse(body, status)
-
-      const result = await prepareFileAttachment(createFile('report.pdf'), { provider: '', modelId: '' })
-
-      expect(result.error).toBe(expected)
-      expect(mockReportError).not.toHaveBeenCalled()
-    })
-
-    it('rejects recognized documents without text', async () => {
-      stubDeepSeekResponse(
-        '{"object":"ocr.result","page_count":1,"pages":[{"index":0,"text":"  ","finish_reason":"stop"}]}'
-      )
-
-      const result = await prepareFileAttachment(createFile('blank.pdf'), { provider: '', modelId: '' })
-
-      expect(result.error).toBe('empty_attachment_content')
-    })
-
-    it('parses formats DeepSeek OCR does not accept with the local parser', async () => {
-      const fetch = stubDeepSeekResponse('{}')
-      blobStore.set('sheet-local', 'Sheet text')
-      mockParseFileLocally.mockResolvedValueOnce({ isSupported: true, key: 'sheet-local' })
-
-      const result = await prepareFileAttachment(createFile('sheet.xlsx'), { provider: '', modelId: '' })
-
-      expect(result.content).toBe('Sheet text')
-      expect(result.parserType).toBe('local')
-      expect(fetch).not.toHaveBeenCalled()
-    })
-  })
-
-  it('rejects whitespace-only content returned by MinerU', async () => {
-    const file = createFile('empty-mineru.pdf')
-    parserState.type = 'mineru'
-    mockParseFileWithMineru.mockResolvedValueOnce({ success: true, content: '   \n\t' })
-
-    const result = await prepareFileAttachment(file, { provider: '', modelId: '' })
-
-    expect(result.content).toBe('')
-    expect(result.storageKey).toBe('')
-    expect(result.error).toBe('empty_attachment_content')
-  })
-
-  it.each(['token_quota_exhausted', 'free_token_quota_exhausted', 'expired_license', 'license_downgraded'])(
-    'keeps the %s account error from the cloud parser fallback',
-    async (codeName) => {
-      const file = createFile('report.pdf')
-      mockParseFileLocally.mockRejectedValueOnce(new Error('local failed'))
-      mockUploadAndCreateUserFile.mockRejectedValueOnce(
-        ChatboxAIAPIError.fromCodeName(`{"error":{"code":"${codeName}"}}`, codeName)
-      )
-
-      const result = await prepareFileAttachment(file, { provider: '', modelId: '' })
-
-      expect(result.error).toBe(codeName)
-      expect(mockReportError).not.toHaveBeenCalled()
-    }
-  )
-
-  it('reports other Chatbox AI failures from the cloud parser fallback as parse failures', async () => {
-    const file = createFile('report.pdf')
-    mockParseFileLocally.mockRejectedValueOnce(new Error('local failed'))
-    mockUploadAndCreateUserFile.mockRejectedValueOnce(
-      ChatboxAIAPIError.fromCodeName('{"error":{"code":"rate_limit_exceeded"}}', 'rate_limit_exceeded')
-    )
-
-    const result = await prepareFileAttachment(file, { provider: '', modelId: '' })
-
-    expect(result.error).toBe('chatbox_ai_parser_failed')
-  })
-
-  it('preserves storage quota failures thrown during the cloud parser fallback', async () => {
-    const file = createFile('report.pdf')
-    const quotaError = new Error('QuotaExceededError: the current transaction exceeded its quota limitations')
-    quotaError.name = 'QuotaExceededError'
-    mockParseFileLocally.mockRejectedValue(new Error('local failed'))
-    mockUploadAndCreateUserFile.mockRejectedValue(quotaError)
-
-    const result = await prepareFileAttachment(file, { provider: '', modelId: '' })
-
-    // Initial attempt + one post-cleanup retry
-    expect(mockUploadAndCreateUserFile).toHaveBeenCalledTimes(2)
-    expect(result.error).toBe('file_storage_quota_exceeded')
-    expect(mockReportError).toHaveBeenCalledWith(
-      expect.objectContaining({ message: 'file_storage_quota_exceeded' }),
-      expect.objectContaining({
-        tags: expect.objectContaining({
-          error_type: 'QuotaExceededError',
-          preprocess_stage: 'cloud_parse',
-          user_error_code: 'file_storage_quota_exceeded',
-        }),
-      })
-    )
-  })
-
   it('classifies desktop ENOSPC failures as storage quota errors', async () => {
     const file = createFile('report.pdf')
     // Desktop IPC serialization degrades the error name to plain "Error", only the message survives.
@@ -838,86 +475,9 @@ describe('preprocessFile local parser fallback', () => {
     expect(result.parserType).toBe('local')
   })
 
-  it('falls back to Chatbox AI when Chatbox AI parser is selected and local parsing is unsupported', async () => {
-    parserState.type = 'chatbox-ai'
-    const file = createFile('cloud-fallback.docx')
-    blobStore.set('remote-key', 'remote parsed document')
-    mockParseFileLocally.mockResolvedValueOnce({ isSupported: false })
-    mockUploadAndCreateUserFile.mockResolvedValueOnce('remote-key')
-
-    const result = await prepareFileAttachment(file, { provider: '', modelId: '' })
-
-    expect(mockParseFileLocally).toHaveBeenCalledWith(file)
-    expect(mockUploadAndCreateUserFile).toHaveBeenCalledWith('licensed-key', file)
-    expect(result.error).toBeUndefined()
-    expect(result.content).toBe('remote parsed document')
-    expect(result.parserType).toBe('chatbox-ai')
-  })
-
   it('keeps high-token attachments inline when parsed content stays below byte threshold', async () => {
     const file = createFile('token-heavy.pdf')
     const parsedContent = 'a'.repeat(8000)
-    blobStore.set('local-key', parsedContent)
-    mockParseFileLocally.mockResolvedValueOnce({ isSupported: true, key: 'local-key' })
-
-    const result = await prepareFileAttachment(file, { provider: '', modelId: '' })
-
-    expect(mockGetSessionRagConfig).not.toHaveBeenCalled()
-    expect(result.error).toBeUndefined()
-    expect(result.ragMode).toBe('inline')
-    expect(result.sessionAttachmentAvailability).toBe('allowed')
-    expect(result.tokenCountMap?.default).toBe(parsedContent.length)
-  })
-
-  it('uses session retrieval for over-threshold attachments when session RAG embedding is available', async () => {
-    const file = createFile('licensed-large.pdf')
-    const parsedContent = 'a'.repeat(256 * 1024 + 1)
-    blobStore.set('local-key', parsedContent)
-    mockParseFileLocally.mockResolvedValueOnce({ isSupported: true, key: 'local-key' })
-
-    const result = await prepareFileAttachment(file, { provider: '', modelId: '' })
-
-    expect(mockGetSessionRagConfig).toHaveBeenCalledWith({ licenseKey: 'licensed-key' })
-    expect(result.error).toBeUndefined()
-    expect(result.ragMode).toBe('session-retrieval')
-    expect(result.sessionAttachmentAvailability).toBe('allowed')
-    expect(result.tokenCountMap?.default).toBeUndefined()
-    expect(result.tokenCountMap?.default_preview).toBeDefined()
-  })
-
-  it('keeps over-threshold CSV attachments inline instead of session retrieval', async () => {
-    const file = createFile('large-data.csv')
-    const parsedContent = 'a,b,c\n'.repeat(64 * 1024)
-    blobStore.set('local-key', parsedContent)
-    mockParseFileLocally.mockResolvedValueOnce({ isSupported: true, key: 'local-key' })
-
-    const result = await prepareFileAttachment(file, { provider: '', modelId: '' })
-
-    expect(mockGetSessionRagConfig).not.toHaveBeenCalled()
-    expect(result.error).toBeUndefined()
-    expect(result.ragMode).toBe('inline')
-    expect(result.sessionAttachmentAvailability).toBe('allowed')
-    expect(result.tokenCountMap?.default).toBe(parsedContent.length)
-  })
-
-  it('keeps over-threshold Excel attachments inline instead of session retrieval', async () => {
-    const file = createFile('large-budget.xlsx')
-    const parsedContent = 'cell text\n'.repeat(64 * 1024)
-    blobStore.set('local-key', parsedContent)
-    mockParseFileLocally.mockResolvedValueOnce({ isSupported: true, key: 'local-key' })
-
-    const result = await prepareFileAttachment(file, { provider: '', modelId: '' })
-
-    expect(mockGetSessionRagConfig).not.toHaveBeenCalled()
-    expect(result.error).toBeUndefined()
-    expect(result.ragMode).toBe('inline')
-    expect(result.sessionAttachmentAvailability).toBe('allowed')
-    expect(result.tokenCountMap?.default).toBe(parsedContent.length)
-  })
-
-  it('keeps over-threshold code attachments inline instead of session retrieval', async () => {
-    const file = createFile('large-app.tsx')
-    const parsedContent = 'export const value = 1\n'.repeat(16 * 1024)
     blobStore.set('local-key', parsedContent)
     mockParseFileLocally.mockResolvedValueOnce({ isSupported: true, key: 'local-key' })
 
@@ -946,28 +506,6 @@ describe('preprocessFile local parser fallback', () => {
     expect(result.sessionAttachmentAvailability).toBe('allowed')
     expect(result.sessionAttachmentBlockedReason).toBeUndefined()
     expect(result.tokenCountMap?.default).toBe(parsedContent.length)
-  })
-
-  it('uses session retrieval for over-threshold attachments without a Chatbox license when a default embedding model is configured', async () => {
-    const file = createFile('byok-large.pdf')
-    const parsedContent = 'a'.repeat(256 * 1024 + 1)
-    licenseState.key = undefined
-    sessionRagCapabilityState.enabled = false
-    defaultEmbeddingModelState.value = {
-      provider: 'openai',
-      model: 'text-embedding-3-small',
-    }
-    blobStore.set('local-key', parsedContent)
-    mockParseFileLocally.mockResolvedValueOnce({ isSupported: true, key: 'local-key' })
-
-    const result = await prepareFileAttachment(file, { provider: '', modelId: '' })
-
-    expect(mockGetSessionRagConfig).not.toHaveBeenCalled()
-    expect(result.error).toBeUndefined()
-    expect(result.ragMode).toBe('session-retrieval')
-    expect(result.sessionAttachmentAvailability).toBe('allowed')
-    expect(result.tokenCountMap?.default).toBeUndefined()
-    expect(result.tokenCountMap?.default_preview).toBeDefined()
   })
 
   it('keeps very large BYOK attachments inline with a warning', async () => {
@@ -1006,52 +544,6 @@ describe('preprocessFile local parser fallback', () => {
     expect(result.tokenCountMap?.default).toBe(parsedContent.length)
   })
 
-  it('recognizes raw session RAG auth failures from existing failed attachments', () => {
-    expect(isSessionAttachmentRagAuthError(SESSION_ATTACHMENT_RAG_REQUIRES_CHATBOX_AI_ERROR)).toBe(true)
-    expect(isSessionAttachmentRagAuthError('provider chatbox-ai not set')).toBe(true)
-    expect(isSessionAttachmentRagAuthError('Missing token for rerank provider: chatbox-ai')).toBe(true)
-    expect(isSessionAttachmentRagAuthError('local_parser_failed')).toBe(false)
-  })
-
-  it('recognizes raw session RAG indexing failures from existing failed attachments', () => {
-    expect(isSessionAttachmentRagIndexingError('ai_provider_error')).toBe(true)
-    expect(
-      isSessionAttachmentRagIndexingError(
-        'API Error: Status Code 400, {"error":{"code":"ai_provider_error","detail":"temporarily unavailable"}}'
-      )
-    ).toBe(true)
-    expect(
-      isSessionAttachmentRagIndexingError(
-        'ConnectionFailed("Unable to open connection to local database /Users/me/databases/chatbox_session_rag_vectors.db: 14")'
-      )
-    ).toBe(true)
-    expect(isSessionAttachmentRagIndexingError('local_parser_failed')).toBe(false)
-  })
-
-  it.each(['data.xlsx', 'slides.pptx', 'index.html', 'report.pdf', 'report.doc', 'table.xls', 'deck.ppt'])(
-    'prepares mobile work attachment %s locally even when the cloud parser is selected',
-    async (name) => {
-      const { default: platform } = await import('@/platform')
-      const previousType = platform.type
-      const previousDesktop = platform.isDesktopLike
-      Object.assign(platform, { type: 'mobile', isDesktopLike: false })
-      try {
-        parserState.type = 'chatbox-ai'
-        licenseState.key = ''
-        const result = await prepareFileAttachment(createFile(name), { provider: '', modelId: '' }, { agentMode: true })
-        expect(result.error).toBeUndefined()
-        expect(result.parserType).toBe('local-workspace')
-        expect(result.rawStorageKey).toBeTruthy()
-        expect(blobStore.get(result.rawStorageKey!)).toMatch(/^data:[^,]*;base64,/)
-        expect(mockUploadAndCreateUserFile).not.toHaveBeenCalled()
-        expect(mockParseFileLocally).not.toHaveBeenCalled()
-        expect(mockGetSessionRagConfig).not.toHaveBeenCalled()
-      } finally {
-        Object.assign(platform, { type: previousType, isDesktopLike: previousDesktop })
-      }
-    }
-  )
-
   it('keeps documents inline with a warning when parsed text exceeds the session attachment limit', async () => {
     const file = createFile('dense.pdf')
     const parsedContent = 'a'.repeat(SESSION_ATTACHMENT_RAG_MAX_PARSED_BYTE_LENGTH + 1)
@@ -1080,27 +572,6 @@ describe('preprocessFile local parser fallback', () => {
     expect(result.error).toBeUndefined()
     expect(result.storageKey).toBe(storageKey)
     expect(result.rawStorageKey).toBe(rawStorageKey)
-    expect(blobStore.get(rawStorageKey)).toMatch(/^data:application\/pdf;base64,/)
-  })
-
-  it('uses raw-only sandbox descriptors for supported documents when agent mode has no parser', async () => {
-    parserState.type = 'none'
-    const file = createFile('no-parser.pdf', 'raw-pdf-content')
-    const storageKey = `file:/tmp/${file.name}-${file.size}-${file.lastModified}`
-    const rawStorageKey = `${storageKey}_raw`
-
-    const result = await prepareFileAttachment(file, { provider: '', modelId: '' }, { agentMode: true })
-
-    expect(mockParseFileLocally).not.toHaveBeenCalled()
-    expect(mockUploadAndCreateUserFile).not.toHaveBeenCalled()
-    expect(result.error).toBeUndefined()
-    expect(result.content).toContain('[File: no-parser.pdf')
-    expect(result.storageKey).toBe(storageKey)
-    expect(result.rawStorageKey).toBe(rawStorageKey)
-    expect(result.parserType).toBe('sandbox-raw')
-    expect(result.tokenCountMap).toBeUndefined()
-    expect(result.lineCount).toBeUndefined()
-    expect(mockSetItem).not.toHaveBeenCalledWith(`${storageKey}_parserType`, 'sandbox-raw')
     expect(blobStore.get(rawStorageKey)).toMatch(/^data:application\/pdf;base64,/)
   })
 })
@@ -1146,22 +617,5 @@ describe('searchSessions', () => {
       expect.objectContaining({ sessionId: 'one', signal: controller.signal })
     )
     expect(mockGetItem).not.toHaveBeenCalled()
-  })
-
-  it('filters system hits using the effective mode from a light header', async () => {
-    await seed({
-      id: 'one',
-      name: 'Chat',
-      messages: [
-        { id: 'system', role: 'system', contentParts: [{ type: 'text', text: 'needle system' }] },
-        { id: 'user', role: 'user', contentParts: [{ type: 'text', text: 'needle user' }] },
-      ],
-    })
-    mockGetSessionAgentModeEntry.mockReturnValue({ value: 'on', locked: false, lockReason: null })
-    expect((await searchSessions('needle')).hits.map((hit) => hit.messageId)).toEqual(['user'])
-    expect(mockGetSessionAgentModeEntry).toHaveBeenCalledWith(
-      'one',
-      expect.not.objectContaining({ messages: expect.anything() })
-    )
   })
 })

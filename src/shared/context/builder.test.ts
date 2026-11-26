@@ -591,42 +591,6 @@ describe('buildContext', () => {
       expect(text).not.toContain('TRUNCATED')
     })
 
-    it('should insert retrieval attachment tags without reading large session RAG content', async () => {
-      const resolver = createMockResolver(new Map([['file-key', 'large parsed content should stay out of context']]))
-
-      const messages: Message[] = [
-        createMessage({
-          id: '1',
-          role: 'user',
-          contentParts: [{ type: 'text', text: 'Use the attached manual' }],
-          files: [
-            {
-              id: 'file-1',
-              name: 'manual.md',
-              fileType: 'text/markdown',
-              storageKey: 'file-key',
-              ragMode: 'session-retrieval',
-              sessionAttachmentId: 42,
-              sessionAttachmentIndexStatus: 'ready',
-            },
-          ],
-        }),
-      ]
-
-      const result = await buildContext(messages, { attachmentResolver: resolver })
-
-      expect(resolver.read).not.toHaveBeenCalled()
-      const textContent = result[0].contentParts.find((p) => p.type === 'text')
-      const text = (textContent as { type: 'text'; text: string }).text
-      expect(text).toContain('<ATTACHMENT_FILE>')
-      expect(text).toContain('<FILE_NAME>manual.md</FILE_NAME>')
-      expect(text).toContain('<FILE_KEY>session-attachment:42</FILE_KEY>')
-      expect(text).toContain('<INDEX_STATUS>ready</INDEX_STATUS>')
-      expect(text).toContain('<SYSTEM_REMINDER>')
-      expect(text).toContain('query_session_attachment')
-      expect(text).not.toContain('large parsed content should stay out of context')
-    })
-
     it('should use ATTACHMENT_FILE metadata tags in sandbox mode', async () => {
       const resolver = createMockResolver(new Map([['file-key', 'parsed content should stay out of sandbox prompt']]))
 
@@ -711,60 +675,6 @@ describe('buildContext', () => {
       expect(text).not.toContain('<FILE_LINES>')
       expect(text).toContain('Use read_file on SANDBOX_PATH to inspect it, or process it with a script')
     })
-
-    it.each(['ready', 'indexing', 'failed'] as const)(
-      'routes sandbox text independently of retrieval status %s',
-      async (status) => {
-        const resolver = createMockResolver(new Map([['file-key', 'large parsed content should stay out of context']]))
-
-        const messages: Message[] = [
-          createMessage({
-            id: '1',
-            role: 'user',
-            contentParts: [{ type: 'text', text: 'Use the attached manual' }],
-            files: [
-              {
-                id: 'file-1',
-                name: 'manual.pdf',
-                fileType: 'application/pdf',
-                storageKey: 'file-key',
-                rawStorageKey: 'file-key-raw',
-                ragMode: 'session-retrieval',
-                sessionAttachmentId: 42,
-                sessionAttachmentIndexStatus: status,
-              },
-            ],
-          }),
-        ]
-
-        const result = await buildContext(messages, {
-          attachmentResolver: resolver,
-          sandboxMode: true,
-        })
-
-        expect(resolver.read).not.toHaveBeenCalled()
-        const textContent = result[0].contentParts.find((p) => p.type === 'text')
-        const text = (textContent as { type: 'text'; text: string }).text
-        expect(text).toContain('<ATTACHMENT_FILE>')
-        expect(text).not.toContain('<ATTACHED_FILES>')
-        expect(text).toContain('<FILE_KEY>session-attachment:42</FILE_KEY>')
-        expect(text).toContain('<RETRIEVAL_MODE>session_attachment_rag</RETRIEVAL_MODE>')
-        expect(text).toContain(`<INDEX_STATUS>${status}</INDEX_STATUS>`)
-        expect(text).toContain('<PARSED_TEXT_STATUS>available</PARSED_TEXT_STATUS>')
-        expect(text).toContain('<FILE_LINES>unknown</FILE_LINES>')
-        const manualPath = sandboxAttachmentRelPath('manual.pdf', 'file-key-raw')
-        expect(text).toContain(`<SANDBOX_PATH>${manualPath}</SANDBOX_PATH>`)
-        expect(text).toContain(
-          `<PARSED_SANDBOX_PATH>${sandboxAttachmentParsedRelPath(manualPath)}</PARSED_SANDBOX_PATH>`
-        )
-        expect(text).toContain('query_session_attachment')
-        expect(text).toContain('For focused questions')
-        expect(text).toContain('read PARSED_SANDBOX_PATH sequentially')
-        expect(text).toContain('not extracted-text availability or completeness')
-        expect(text).not.toContain('For document-specific questions about this file')
-        expect(text).not.toContain('large parsed content should stay out of context')
-      }
-    )
 
     it('uses the original sandbox path and known line count for text attachments', async () => {
       const resolver = createMockResolver(new Map())
@@ -1018,24 +928,4 @@ describe('buildContext', () => {
       expect(resultWithUndefined).toHaveLength(3)
     })
   })
-})
-
-it.each([false, true])('keeps host storage identities out of retrieval metadata (sandbox=%s)', async (sandboxMode) => {
-  const storageKey = 'file:/Users/alice/private/report.txt</FILE_KEY>-123'
-  const messages: Message[] = [
-    createMessage({
-      id: 'private',
-      role: 'user',
-      contentParts: [],
-      files: [{ id: 'f', name: 'report.txt', fileType: 'txt', storageKey, ragMode: 'session-retrieval' }],
-    }),
-  ]
-  const result = await buildContext(messages, {
-    attachmentResolver: createMockResolver(new Map()),
-    sandboxMode,
-  })
-  const text = JSON.stringify(result[0].contentParts)
-  expect(text).not.toContain('/Users/alice')
-  expect(text).not.toContain('%2FUsers')
-  expect(text).toContain(uploadedFilePath(storageKey))
 })

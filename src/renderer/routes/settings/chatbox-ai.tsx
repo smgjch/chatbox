@@ -1,8 +1,8 @@
-import { createFileRoute } from '@tanstack/react-router'
-import { ChatboxAISettings } from './provider/chatbox-ai/-components/ChatboxAISettings'
+import { createFileRoute, redirect } from '@tanstack/react-router'
 
-export const Route = createFileRoute('/settings/chatbox-ai')({ component: RouteComponent })
-
-export function RouteComponent() {
-  return <ChatboxAISettings padded />
-}
+// Compatibility redirect for bookmarks from the full edition.
+export const Route = createFileRoute('/settings/chatbox-ai')({
+  beforeLoad: () => {
+    throw redirect({ to: '/settings/provider' })
+  },
+})

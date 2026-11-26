@@ -1,20 +1,20 @@
 /// <reference types="vite/client" />
 
-import { createChatQueryClient } from '@chatbox/react'
-import { v4 as uuidv4 } from 'uuid'
 import { CurrentSessionRepository } from '@/adapters/CurrentSessionRepository'
 import { rendererSessionFolderStore } from '@/adapters/RendererSessionFolderStore'
 import { RendererSettingsStorage } from '@/adapters/RendererSettingsStorage'
 import { getLogger } from '@/lib/utils'
 import platform from '@/platform'
 import { createRendererQueryLifecycle } from '@/react-bindings/renderer-query-lifecycle'
-import { authInfoStore } from '@/stores/authInfoStore'
-import { getCopilotName } from '@/stores/copilotStore'
+
+import { createChatQueryClient } from '@chatbox/react'
+import { v4 as uuidv4 } from 'uuid'
+
 import { initLastUsedModelStore, lastUsedModelStore } from '@/stores/lastUsedModelStore'
 import { reportError } from '@/utils/sentry'
 import {
-  type CreateRendererApplicationOptions,
   createRendererApplication,
+  type CreateRendererApplicationOptions,
   type RendererHostKind,
 } from './createRendererApplication'
 
@@ -41,7 +41,6 @@ const settingsEffectsHost = {
 }
 
 const common: Omit<CreateRendererApplicationOptions, 'host'> = {
-  authInfoStore,
   lastUsedModelStore,
   queryClient,
   queryLifecycle: createRendererQueryLifecycle(),
@@ -52,7 +51,6 @@ const common: Omit<CreateRendererApplicationOptions, 'host'> = {
     createId: uuidv4,
     logger: getLogger('session-service'),
     folders: rendererSessionFolderStore,
-    getCopilotName,
   },
   settingsLogger: getLogger('settings-service'),
   settingsEffectsHost,

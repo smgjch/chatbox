@@ -115,7 +115,7 @@ export function planMessageAttachments(message: Message, policy: AttachmentPolic
   let index = 1
   for (const file of files ?? []) {
     // Retrieval tools are registered with the file tools; without them a compacted retrieval file is a plain reference.
-    const retrieval = file.ragMode === 'session-retrieval' && (!reference || policy.modelSupportToolUseForFile === true)
+    const retrieval = file.ragMode === 'session-retrieval' && policy.modelSupportToolUseForFile === true
     if (policy.sandboxMode) {
       const isText = isTextFilePath(file.name)
       const sandboxPath = sandboxAttachmentRelPath(file.name, sandboxAttachmentIdentity(file))

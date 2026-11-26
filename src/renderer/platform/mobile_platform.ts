@@ -1,3 +1,10 @@
+import { parseLocale } from '@/i18n/parser'
+import type { ImageGenerationStorage } from '@/storage/ImageGenerationStorage'
+import type { SessionMetaStorage } from '@/storage/SessionMetaStorage'
+import { SQLiteImageGenerationStorage } from '@/storage/SQLiteImageGenerationStorage'
+import { SQLiteSessionMetaStorage } from '@/storage/SQLiteSessionMetaStorage'
+import { SQLiteSessionRowStore } from '@/storage/SQLiteSessionRowStorage'
+import { CHATBOX_BUILD_PLATFORM } from '@/variables'
 import { App } from '@capacitor/app'
 import { Browser } from '@capacitor/browser'
 import { Device } from '@capacitor/device'
@@ -7,19 +14,12 @@ import * as defaults from '@shared/defaults'
 import type { Config, Settings, ShortcutSetting } from '@shared/types'
 import localforage from 'localforage'
 import { v4 as uuidv4 } from 'uuid'
-import { parseLocale } from '@/i18n/parser'
-import type { ImageGenerationStorage } from '@/storage/ImageGenerationStorage'
-import type { SessionMetaStorage } from '@/storage/SessionMetaStorage'
-import { SQLiteImageGenerationStorage } from '@/storage/SQLiteImageGenerationStorage'
-import { SQLiteSessionMetaStorage } from '@/storage/SQLiteSessionMetaStorage'
-import { SQLiteSessionRowStore } from '@/storage/SQLiteSessionRowStorage'
-import { CHATBOX_BUILD_PLATFORM } from '@/variables'
 import { getBrowser, getOS } from '../packages/navigator'
 import type { Platform, PlatformType } from './interfaces'
-import type { KnowledgeBaseController } from './knowledge-base/interface'
+
 import MobileExporter from './mobile_exporter'
 import mobileLogger from './mobile_logger'
-import type { SessionAttachmentRagController } from './session-attachment-rag/interface'
+
 import { MobileSQLiteStorage } from './storages'
 import { parseFileLocallyInBrowser } from './web_platform_utils'
 
@@ -280,21 +280,6 @@ export default class MobilePlatform extends MobileSQLiteStorage implements Platf
   }
 
   async parseFileLocally(file: File): Promise<{ key?: string; isSupported: boolean; errorCode?: string }> {
-    if (/\.(docx|xlsx|pptx)$/i.test(file.name)) {
-      const { capacitorExecution } = await import('@/packages/mobile-work-mode/execution-service')
-      if (file.size > 10 * 1024 * 1024) return { isSupported: false, errorCode: 'local_parser_file_too_large' }
-      const bytes = new Uint8Array(await file.arrayBuffer())
-      let binary = ''
-      for (let offset = 0; offset < bytes.length; offset += 8192)
-        binary += String.fromCharCode(...bytes.subarray(offset, offset + 8192))
-      const parsed = await capacitorExecution.parseDocument(file.name, btoa(binary), new AbortController().signal)
-      const key = `parseFile-${uuidv4()}`
-      await this.setStoreBlob(
-        key,
-        parsed.text + (parsed.truncated ? '\n[Document text truncated at the local parsing limit.]' : '')
-      )
-      return { key, isSupported: true }
-    }
     const result = await parseFileLocallyInBrowser(file)
     if (!result.isSupported) {
       return { isSupported: false, errorCode: result.errorCode }
@@ -322,14 +307,6 @@ export default class MobilePlatform extends MobileSQLiteStorage implements Platf
 
   installUpdate(): Promise<void> {
     throw new Error('Method not implemented.')
-  }
-
-  public getKnowledgeBaseController(): KnowledgeBaseController {
-    throw new Error('Method not implemented.')
-  }
-
-  public getSessionAttachmentRagController(): SessionAttachmentRagController {
-    throw new Error('Session attachment RAG is not implemented on mobile.')
   }
 
   public getImageGenerationStorage(): ImageGenerationStorage {

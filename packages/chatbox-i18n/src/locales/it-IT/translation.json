@@ -2093,5 +2093,22 @@
   "This request will consume {{count}} image quota.": "This request will consume {{count}} image quota.",
   "This request will use {{quota}} image quota first, then charge {{images}} × {{points}} points/image = {{total}} points. Approving confirms this charge.": "This request will use {{quota}} image quota first, then charge {{images}} × {{points}} points/image = {{total}} points. Approving confirms this charge.",
   "This request will use {{quota}} image quota first, then charge {{images}} × {{points}} points/image = {{total}} points. Already allowed to use compute points.": "This request will use {{quota}} image quota first, then charge {{images}} × {{points}} points/image = {{total}} points. L’utilizzo dei punti di calcolo è già consentito.",
-  "This request will use compute points: {{images}} × {{points}} points/image = {{total}} points. Already allowed to use compute points.": "Questa richiesta utilizzerà punti di calcolo: {{images}} × {{points}} punti/immagine = {{total}} punti. L’utilizzo dei punti di calcolo è già consentito."
+  "This request will use compute points: {{images}} × {{points}} points/image = {{total}} points. Already allowed to use compute points.": "Questa richiesta utilizzerà punti di calcolo: {{images}} × {{points}} punti/immagine = {{total}} punti. L’utilizzo dei punti di calcolo è già consentito.",
+  "Use AGIHub Gemini preset": "Use AGIHub Gemini preset",
+  "Gemini authentication": "Gemini authentication",
+  "Include model in request body": "Include model in request body",
+  "Required by some Gemini gateways such as AGIHub.": "Required by some Gemini gateways such as AGIHub.",
+  "Gemini streaming": "Gemini streaming",
+  "Disable for gateways that only support generateContent.": "Disable for gateways that only support generateContent.",
+  "Gemini thinking mode": "Gemini thinking mode",
+  "Use thinkingLevel for Gemini 3 and newer, or thinkingBudget for Gemini 2.5. Custom model names are supported.": "Use thinkingLevel for Gemini 3 and newer, or thinkingBudget for Gemini 2.5. Custom model names are supported.",
+  "Automatic detection": "Automatic detection",
+  "This image session is read-only.": "This image session is read-only.",
+  "Save settings and conversations to a backup file.": "Save settings and conversations to a backup file.",
+  "Conversations and resources with matching IDs will be replaced. Included settings will replace local values.": "Conversations and resources with matching IDs will be replaced. Included settings will replace local values.",
+  "Chatbox Lite": "Chatbox Lite",
+  "Chat-only edition. Your conversations and provider credentials stay on this device.": "Chat-only edition. Your conversations and provider credentials stay on this device.",
+  "Files are parsed locally and included in the chat context.": "Files are parsed locally and included in the chat context.",
+  "Chat-only edition. Use your own model providers; conversations stay on your device.": "Chat-only edition. Use your own model providers; conversations stay on your device.",
+  "Could not parse this file locally. Try a text-based file or paste its contents.": "Could not parse this file locally. Try a text-based file or paste its contents."
 }

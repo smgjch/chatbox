@@ -58,28 +58,28 @@ export {
 } from './forks'
 // Generation operations (8 functions)
 export {
+  genMessageContext,
   generate,
   generateMore,
-  genMessageContext,
   getSessionWebBrowsing,
   regenerateInNewFork,
   retryFromLastToolCallAfterApiError,
   saveAndResendMessage,
 } from './generation'
-export type { GenerationCancellationDependencies } from './generation-cancellation'
 export { stopAllMessageGenerations, stopMessageGeneration } from './generation-cancellation'
+export type { GenerationCancellationDependencies } from './generation-cancellation'
 // Session queue (user messages and compression requests waiting for a busy session)
-export type { QueuedCompactionRequest, QueuedItem, QueuedUserMessage, QueuePausedReason } from './message-queue'
 export {
   clearQueue,
-  readConversationAnchorId,
   enqueueCompactionRequest,
   enqueueUserMessage,
   hasQueuedWork,
   messageQueueStore,
+  readConversationAnchorId,
   removeQueuedMessage,
   resumeQueueAndDrain,
 } from './message-queue'
+export type { QueuePausedReason, QueuedCompactionRequest, QueuedItem, QueuedUserMessage } from './message-queue'
 export { hasContentForAutoTitle, hasSuccessfulUserAssistantTurn, isSuccessfulAssistantReply } from './message-success'
 // Message operations (5 functions)
 export {
@@ -110,7 +110,7 @@ export {
   startNewThread,
   switchThread,
 } from './threads'
-export { buildToolsForSession } from './tools-builder'
+
 // Types and state
 export * from './types'
 export {

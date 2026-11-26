@@ -10,11 +10,11 @@ describe('QA preflight entrypoint ordering', () => {
   it('loads before modules that can touch the Electron userData profile', () => {
     const mainSource = readMainSource('./main.ts')
     const preflightImportIndex = mainSource.indexOf("from './qa-preflight'")
-    const legacyMigrationImportIndex = mainSource.indexOf("import './legacy-database-migration'")
+    const storeImportIndex = mainSource.indexOf("from './store-node'")
 
     expect(preflightImportIndex).toBeGreaterThan(-1)
-    expect(legacyMigrationImportIndex).toBeGreaterThan(-1)
-    expect(preflightImportIndex).toBeLessThan(legacyMigrationImportIndex)
+    expect(storeImportIndex).toBeGreaterThan(-1)
+    expect(preflightImportIndex).toBeLessThan(storeImportIndex)
   })
 
   it('does not initialize Electron while validating launch arguments', () => {

@@ -491,3 +491,28 @@ describe('provider-config', () => {
     })
   })
 })
+
+it('imports native Gemini gateway settings without losing auth, stream or reasoning fields', async () => {
+  const { buildImportedProviderSettingsUpdate } = await import('@/components/settings/provider/importProviderState')
+  const settings = {
+    apiHost: 'https://agihub.bytedance.net/api_proxy/auto_mode/call/v1beta',
+    apiKey: 'test-key',
+    geminiAuthMode: 'bearer',
+    geminiIncludeModel: true,
+    geminiStreaming: false,
+    useProxy: false,
+    models: [{ modelId: 'gemini-4-argon', apiStyle: 'google', thinkingMode: 'level' }],
+  }
+  const config = parseProviderFromJson(
+    JSON.stringify({ isCustom: true, id: 'custom-agihub', name: 'AGIHub', type: 'gemini', settings })
+  )!
+  expect(config).toMatchObject({ ...settings, type: ModelProviderType.Gemini })
+  const update = buildImportedProviderSettingsUpdate({
+    importedConfig: config,
+    existingProvider: null,
+    providers: {},
+    customProviders: [],
+  })
+  expect(update.providers?.['custom-agihub']).toMatchObject(settings)
+  expect(update.customProviders?.[0].type).toBe(ModelProviderType.Gemini)
+})

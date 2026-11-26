@@ -8,7 +8,6 @@ import { CHATBOX_QA_PREFLIGHT } from './qa-preflight'
 
 // solve electron breaking changes, see https://www.electronjs.org/docs/latest/breaking-changes#behavior-changed-directory-databases-in-userdata-will-be-deleted
 // since 1.21.0, and this NEEDS to be the first import that initializes Electron's app module.
-import './legacy-database-migration'
 import { registerFileTransferIpc } from './file-transfer-ipc'
 
 /* eslint global-require: off, no-console: off, promise/always-return: off */
@@ -22,7 +21,6 @@ import { registerFileTransferIpc } from './file-transfer-ipc'
  * `./src/main.js` using webpack. This gives us some performance wins.
  */
 
-import fs from 'node:fs'
 import {
   app,
   BrowserWindow,
@@ -38,40 +36,40 @@ import {
 } from 'electron'
 import electronDebug from 'electron-debug'
 import log from 'electron-log/main'
+import fs from 'node:fs'
 import os from 'os'
 import path from 'path'
 // @ts-expect-error - source-map-support doesn't have type definitions
 import * as sourceMapSupport from 'source-map-support'
 import type { ShortcutSetting } from 'src/shared/types'
 import { applyDevLaunchHashToUrl, buildDevLaunchHash, parseDevLaunchOptions } from '../shared/dev-launch'
-import type { FileEditRequest } from '../shared/file-edits'
 import { KNOWN_LOCAL_PARSER_ERROR_CODES } from '../shared/file-parse-errors'
-import { startChatboxAPIOriginProbing } from '../shared/request/chatboxai_pool'
+
 import { VIEW_IMAGE_MAX_READ_BYTES } from '../shared/tools/view-image'
 import { flushSentry, sentry } from './adapters/sentry'
-import { registerAgentPersonaHandlers } from './agent-persona/ipc-handlers'
+
 import * as analystic from './analystic-node'
-import { AppUpdater } from './app-updater'
+
 import * as autoLauncher from './autoLauncher'
 import { formatTooLargeFileRead, readRegularFileBytesBounded } from './bounded-file-read'
-import { registerBuiltInBrowserHandlers } from './built-in-browser'
+
 import { handleDeepLink } from './deeplinks'
 import { registerDesktopDirectRequestHandlers } from './desktop-direct-request'
-import { editTextFile, writeTextFile } from './file-mutations'
+
 import { parseFile } from './file-parser'
 import { isQuitForInstallRequested } from './installer-command'
 import Locale from './locales'
-import { mainFetch } from './main-fetch'
-import * as mcpIpc from './mcp/ipc-stdio-transport'
+
 import MenuBuilder from './menu'
 import { registerOAuthHandlers } from './oauth'
 import * as proxy from './proxy'
 import { getMainRuntimePolicy } from './qa-runtime'
 import { getQaWindowPlacementMode, resolveQaWindowBounds } from './qa-window'
-import { runRipgrepSearch } from './ripgrep-search'
-import { cleanupSandboxResources, registerSandboxHandlers } from './sandbox'
-import { bufferToArrayBuffer } from './sandbox/read-file-base64'
-import { registerSkillsHandlers } from './skills'
+
+function bufferToArrayBuffer(buffer: Buffer): ArrayBuffer {
+  return buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength) as ArrayBuffer
+}
+
 import {
   delStoreBlob,
   getConfig,
@@ -82,7 +80,6 @@ import {
   store,
 } from './store-node'
 import * as windowState from './window_state'
-import { loadWorkspaceInstructions } from './workspace-instructions'
 
 const IS_HARMONY_BUILD = process.env.CHATBOX_BUILD_TARGET === 'harmony_app'
 const IS_HARMONY_KB_ENABLED = process.env.CHATBOX_HARMONY_KB_ENABLED === 'true'
@@ -104,7 +101,6 @@ const DEV_LAUNCH_OPTIONS = parseDevLaunchOptions({
 const DEV_LAUNCH_HASH = buildDevLaunchHash(DEV_LAUNCH_OPTIONS)
 
 function exitHarmonyApp(): void {
-  cleanupSandboxResources()
   app.exit(0)
 }
 
@@ -176,27 +172,7 @@ process.on('uncaughtException', (error) => {
   void flushSentry(2000).finally(() => process.exit(1))
 })
 
-const knowledgeBaseInitPromise =
-  IS_HARMONY_BUILD && !IS_HARMONY_KB_ENABLED
-    ? Promise.resolve()
-    : import('./knowledge-base/index.js')
-        .then((mod) => mod.getInitPromise())
-        .catch((error) => {
-          log.error('[KB] Failed to initialize knowledge base during bootstrap:', error)
-        })
-
 const TRUTHY_ENV_VALUES = new Set(['1', 'true', 'yes', 'on'])
-
-function initializeSessionAttachmentRagAfterAppReady() {
-  if (IS_HARMONY_BUILD) {
-    return Promise.resolve()
-  }
-  return import('./session-attachment-rag/index.js')
-    .then((mod) => mod.getInitPromise())
-    .catch((error) => {
-      log.error('[SessionAttachmentRAG] Failed to initialize during bootstrap:', error)
-    })
-}
 
 function isTruthyEnv(value: string | undefined): boolean {
   if (!value) {
@@ -270,8 +246,8 @@ const getAssetPath = (...paths: string[]): string => {
   return path.join(RESOURCES_PATH, ...paths)
 }
 
-// 开发环境使用 chatbox-dev:// 协议，避免和正式版冲突
-const PROTOCOL_SCHEME = process.defaultApp ? 'chatbox-dev' : 'chatbox'
+// 开发环境使用 chatbox-lite-dev:// 协议，避免和正式版冲突
+const PROTOCOL_SCHEME = process.defaultApp ? 'chatbox-lite-dev' : 'chatbox-lite'
 
 if (MAIN_RUNTIME_POLICY.registerProtocolClient) {
   if (process.defaultApp) {
@@ -407,7 +383,7 @@ function createTray() {
       accelerator: 'Command+Q',
     },
   ])
-  tray.setToolTip('Chatbox')
+  tray.setToolTip('Chatbox Lite')
   tray.setContextMenu(contextMenu)
   tray.on('double-click', showOrHideWindow)
   return tray
@@ -714,7 +690,7 @@ if (quitForInstallRequested) {
     }
 
     // on windows and linux, the deep link is passed in the command line
-    const url = commandLine.find((arg) => arg.startsWith('chatbox://') || arg.startsWith('chatbox-dev://'))
+    const url = commandLine.find((arg) => arg.startsWith('chatbox-lite://') || arg.startsWith('chatbox-lite-dev://'))
 
     if (url) {
       // Deep Link 场景：总是显示并聚焦窗口
@@ -757,22 +733,20 @@ if (quitForInstallRequested) {
     .whenReady()
     .then(async () => {
       // Main is a separate JS context from the renderer, so it selects its own Chatbox API origin.
-      startChatboxAPIOriginProbing({ fetch: mainFetch })
-      await knowledgeBaseInitPromise
+
       await createWindow()
       startupWindowCreated = true
-      await initializeSessionAttachmentRagAfterAppReady()
+
       ensureTray()
       // HarmonyOS HAP updates are distributed outside electron-updater.
       if (MAIN_RUNTIME_POLICY.startAppUpdater) {
-        new AppUpdater(() => mainWindow)
       }
 
       // 处理启动时的 Deep Link：macOS 来自窗口创建前的 open-url 事件，Windows/Linux 来自命令行参数
       const url =
         process.platform === 'darwin'
           ? startupDeepLink
-          : process.argv.find((arg) => arg.startsWith('chatbox://') || arg.startsWith('chatbox-dev://'))
+          : process.argv.find((arg) => arg.startsWith('chatbox-lite://') || arg.startsWith('chatbox-lite-dev://'))
       startupDeepLink = undefined
       if (url && mainWindow) {
         // 确保窗口加载完成后再处理 Deep Link
@@ -814,7 +788,7 @@ if (quitForInstallRequested) {
         } catch (e) {
           log.error('shortcut: failed to unregister', e)
         }
-        mcpIpc.closeAllTransports()
+
         destroyTray()
       })
       app.on('before-quit', (event) => {
@@ -1111,55 +1085,6 @@ ipcMain.handle('fs:read-image', async (_event, params: { filePath: string }) => 
   }
 })
 
-ipcMain.handle('workspace:read-instructions', async (_event, directories: string[]) => {
-  return loadWorkspaceInstructions(directories)
-})
-
-ipcMain.handle('fs:list', async (_event, params: { dirPath: string }) => {
-  try {
-    const resolved = path.resolve(params.dirPath)
-    const entries = await fs.promises.readdir(resolved, { withFileTypes: true })
-    const rows = await Promise.all(
-      entries.slice(0, FS_LIST_MAX_ENTRIES).map(async (entry) => {
-        const entryPath = path.join(resolved, entry.name)
-        const stat = await fs.promises.stat(entryPath).catch(() => null)
-        const type = entry.isDirectory() ? 'dir' : entry.isFile() ? 'file' : 'other'
-        const size = stat?.size ?? 0
-        return `${type}\t${size}\t${entry.name}`
-      })
-    )
-    const suffix =
-      entries.length > FS_LIST_MAX_ENTRIES ? `\n... ${entries.length - FS_LIST_MAX_ENTRIES} more entries` : ''
-    return { success: true, content: rows.join('\n') + suffix }
-  } catch (error) {
-    return { success: false, error: error instanceof Error ? error.message : String(error) }
-  }
-})
-
-ipcMain.handle(
-  'fs:search',
-  async (_event, params: { pattern: string; dirPath: string; regex?: boolean; include?: string }) => {
-    return runRipgrepSearch({
-      root: params.dirPath,
-      pattern: params.pattern,
-      regex: params.regex,
-      include: params.include,
-    })
-  }
-)
-
-ipcMain.handle('fs:write', async (_event, params: { filePath: string; content: string }) => {
-  try {
-    const resolved = path.resolve(params.filePath)
-    await writeTextFile(resolved, params.content)
-    return { success: true }
-  } catch (error) {
-    return { success: false, error: error instanceof Error ? error.message : String(error) }
-  }
-})
-
-ipcMain.handle('fs:edit', async (_event, params: FileEditRequest) => editTextFile(params))
-
 ipcMain.handle('parseUrl', async (event, url: string) => {
   // const result = await readability(url, { maxLength: 1000 })
   // const key = 'parseUrl-' + uuidv4()
@@ -1260,11 +1185,8 @@ ipcMain.handle('window:is-maximized', () => {
   return mainWindow?.isMaximized()
 })
 
-registerSandboxHandlers()
-registerSkillsHandlers()
 registerOAuthHandlers()
-registerAgentPersonaHandlers()
+
 if (!IS_HARMONY_BUILD) {
   registerDesktopDirectRequestHandlers()
-  registerBuiltInBrowserHandlers()
 }

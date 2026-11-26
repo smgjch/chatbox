@@ -6,9 +6,9 @@ import type { MessageContentParts, ModelProvider, ProviderModelInfo, ProviderOpt
 import { ModelProviderEnum } from '../types'
 import {
   canDisableGoogleThinking,
-  type GoogleThinkingLevel,
   getGoogleThinkingMode,
   getSupportedGoogleThinkingLevels,
+  type GoogleThinkingLevel,
 } from './google-thinking'
 
 // 'default' sends no reasoning-related parameters at all (the provider's server-side
@@ -623,7 +623,7 @@ export function getReasoningControlCapabilities(
     return { supported: true, kind: 'budget' }
   }
   if (effectiveProvider === ModelProviderEnum.Gemini) {
-    const mode = getGoogleThinkingMode(modelId)
+    const mode = getGoogleThinkingMode(modelId, model?.thinkingMode)
     if (mode === 'budget') return { supported: true, kind: 'budget' }
     if (mode === 'level') return { supported: true, kind: 'level' }
   }
@@ -817,13 +817,13 @@ export function getReasoningControlOptions(
   const capabilities = getReasoningControlCapabilities(provider, model)
   if (!capabilities.supported) return []
 
-  const offOption: ReasoningControlOption[] = supportsExplicitDisable(
-    capabilities.kind,
-    getEffectiveProvider(provider, model),
-    model?.modelId || ''
-  )
-    ? [{ level: 'off', label: 'off' }]
-    : []
+  // Level-based Gemini thinking cannot actually be switched off. Hiding its
+  // summary is not the same as disabling reasoning.
+  const offOption: ReasoningControlOption[] =
+    !(getEffectiveProvider(provider, model) === ModelProviderEnum.Gemini && capabilities.kind === 'level') &&
+    supportsExplicitDisable(capabilities.kind, getEffectiveProvider(provider, model), model?.modelId || '')
+      ? [{ level: 'off', label: 'off' }]
+      : []
 
   if (capabilities.kind === 'toggle') {
     return [{ level: 'default', label: 'default' }, ...offOption, { level: 'high', label: 'on' }]

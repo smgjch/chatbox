@@ -1,17 +1,8 @@
-import { resolveSessionMode } from '@chatbox/core/session/mode-policy'
-import { Box, Button, Loader } from '@mantine/core'
-import type { ModelProvider } from '@shared/types'
-import { createFileRoute, useNavigate } from '@tanstack/react-router'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useTranslation } from 'react-i18next'
-import { useStore } from 'zustand'
-import { JK_PAGE_NAMES } from '@/analytics/jk-events'
 import { rendererApplication } from '@/app/renderer-application'
 import MessageList, { type MessageListRef } from '@/components/chat/MessageList'
-import { ChatboxWelcomeCard } from '@/components/common/ChatboxWelcomeCard'
 import { ErrorBoundary } from '@/components/common/ErrorBoundary'
 import InputBox, { type InputBoxPayload } from '@/components/InputBox/InputBox'
-import { contentColumnContainerClassName, paddedContentColumnClassName } from '@/components/layout/contentColumn'
+import { contentColumnContainerClassName } from '@/components/layout/contentColumn'
 import Header from '@/components/layout/Header'
 import Page from '@/components/layout/Page'
 import { MissingSessionActions } from '@/components/session/MissingSessionActions'
@@ -25,7 +16,6 @@ import { useSessionPresentation, useSessionTranscript } from '@/hooks/useSession
 import useVersion from '@/hooks/useVersion'
 import { cn } from '@/lib/utils'
 import { defaultSessionsForCN, defaultSessionsForEN } from '@/packages/initial_data'
-import * as remote from '@/packages/remote'
 import {
   sessionStartupRecovery,
   useSessionStartupGuard,
@@ -34,19 +24,23 @@ import {
 } from '@/packages/session-startup-recovery'
 import platform from '@/platform'
 import { showSessionArchiveUndo } from '@/presentation/session/session-archive-notification'
-import { useAuthInfoStore } from '@/stores/authInfoStore'
-import { applyChatboxLicenseDefaultModelToSession } from '@/stores/defaultChatModel'
 import { lastUsedModelStore } from '@/stores/lastUsedModelStore'
+import { clearSessionSearchTarget, getSessionSearchTarget } from '@/stores/session-search-target'
 import { useSessionAgentMode } from '@/stores/session/agent-mode'
 import { switchCurrentSession } from '@/stores/session/crud'
 import { submitNewUserMessage } from '@/stores/session/messages'
 import { startNewThread } from '@/stores/session/threads'
-import { clearSessionSearchTarget, getSessionSearchTarget } from '@/stores/session-search-target'
 import { clearSessionActivity, setOnScreenSession } from '@/stores/sessionActivityStore'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { add as addToast } from '@/stores/toastActions'
 import { uiStore, useUIStore } from '@/stores/uiStore'
-import { getHomeWelcomeCardMode } from '@/utils/homeWelcomeCard'
+import { resolveSessionMode } from '@chatbox/core/session/mode-policy'
+import { Box, Button } from '@mantine/core'
+import type { ModelProvider } from '@shared/types'
+import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import { useStore } from 'zustand'
 
 export const Route = createFileRoute('/session/$sessionId')({
   component: SessionRouteWithErrorBoundary,
@@ -96,13 +90,9 @@ function RouteComponent() {
     if (searchTarget) clearSessionSearchTarget(searchTarget)
   }, [searchTarget])
   const { providers } = useProviders()
-  const licenseKey = useSettingsStore((s) => s.licenseKey)
-  const hasLicense = Boolean(licenseKey)
-  const licenseDetail = useSettingsStore((s) => s.licenseDetail)
-  const licensePlanName = useSettingsStore((s) => s.licensePlanName)
-  const hasExpiredLicense = useSettingsStore((s) => s.hasExpiredLicense)
+
   const autoScrollNewMessagesToTop = useSettingsStore((s) => s.autoScrollNewMessagesToTop)
-  const isLoggedIn = useAuthInfoStore((s) => Boolean(s.accessToken && s.refreshToken))
+
   const { isExceeded, isExceededResolved } = useVersion()
   const widthFull = useUIStore((s) => s.widthFull)
   const isSmallScreen = useIsSmallScreen()
@@ -119,33 +109,7 @@ function RouteComponent() {
     return () => setOnScreenSession(null)
   }, [currentSessionId])
 
-  const welcomeCardMode = useMemo(
-    () =>
-      getHomeWelcomeCardMode({
-        providerCount: providers.length,
-        isLoggedIn,
-        hasLicense,
-        hasExpiredLicense,
-        hideForStoreReview: isExceeded || !isExceededResolved,
-      }),
-    [providers.length, isLoggedIn, hasLicense, hasExpiredLicense, isExceeded, isExceededResolved]
-  )
-
-  const shouldShowTemplateWelcomeCard = useMemo(
-    () => Boolean(currentSession && builtInTemplateSessionIds.has(currentSession.id) && welcomeCardMode !== 'none'),
-    [currentSession, welcomeCardMode]
-  )
-  const currentSessionWithDefaultModel = useMemo(() => {
-    if (!currentSession || !builtInTemplateSessionIds.has(currentSession.id)) {
-      return currentSession
-    }
-    return applyChatboxLicenseDefaultModelToSession(currentSession, {
-      licenseKey,
-      hasExpiredLicense,
-      licenseDetail,
-      licensePlanName,
-    })
-  }, [currentSession, hasExpiredLicense, licenseDetail, licenseKey, licensePlanName])
+  const currentSessionWithDefaultModel = currentSession
   const goHome = useCallback(() => {
     navigate({ to: '/', replace: true })
   }, [navigate])
@@ -191,11 +155,7 @@ function RouteComponent() {
     if (!currentSession) return
     const rollback = await startNewThread(currentSession.id)
     if (!rollback) return
-    if (currentSession.copilotId) {
-      void remote
-        .recordCopilotUsage({ id: currentSession.copilotId, action: 'create_thread' })
-        .catch((error) => console.warn('[recordCopilotUsage] failed', error))
-    }
+
     return rollback
   }, [currentSession])
 
@@ -214,12 +174,6 @@ function RouteComponent() {
         await rendererApplication.sessions.updateSessionHeader(currentSession.id, {
           settings: currentSessionWithDefaultModel.settings,
         })
-      }
-
-      if (currentSession.copilotId) {
-        void remote
-          .recordCopilotUsage({ id: currentSession.copilotId, action: 'create_message' })
-          .catch((error) => console.warn('[recordCopilotUsage] failed', error))
       }
 
       await submitNewUserMessage(currentSession.id, {
@@ -313,20 +267,6 @@ function RouteComponent() {
         />
 
         <Box className="relative">
-          {shouldShowTemplateWelcomeCard && (
-            // absolute — taken out of flow, doesn't affect layout of siblings
-            // bottom: '100%' — positioned right above the parent box's top edge (like a tooltip anchoring upward)
-            <Box className="pointer-events-none absolute left-0 right-0 z-10" style={{ bottom: '100%' }} mb="sm">
-              <Box className={paddedContentColumnClassName(widthFull)}>
-                <ChatboxWelcomeCard
-                  mode={welcomeCardMode}
-                  pageName={JK_PAGE_NAMES.CHAT_PAGE}
-                  className="pointer-events-auto w-full"
-                />
-              </Box>
-            </Box>
-          )}
-
           {/* <ScrollButtons /> */}
           <ErrorBoundary name="session-inputbox">
             <InputBox

@@ -7,7 +7,6 @@
   "types": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts",
-    "./copilots": "./src/copilots/index.ts",
     "./query": "./src/query/index.ts",
     "./retry": "./src/retry.ts",
     "./stores": "./src/stores/index.ts",

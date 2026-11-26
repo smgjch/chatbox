@@ -1,3 +1,5 @@
+import { rendererApplication } from '@/app/renderer-application'
+import { contentColumnClassName, paddedContentColumnClassName } from '@/components/layout/contentColumn'
 import type { SessionHeaderRead } from '@chatbox/core/ports'
 import { getSessionActionGate } from '@chatbox/core/session/action-gates'
 import { isActionAvailableInMode, resolveSessionMode, type SessionMode } from '@chatbox/core/session/mode-policy'
@@ -20,8 +22,8 @@ import {
 import { useAtomValue } from 'jotai'
 import {
   type FC,
-  Fragment,
   forwardRef,
+  Fragment,
   memo,
   type ReactNode,
   type UIEvent,
@@ -35,9 +37,7 @@ import {
 } from 'react'
 import { useTranslation } from 'react-i18next'
 import { type ContextProp, type FlatScrollIntoViewLocation, Virtuoso, type VirtuosoHandle } from 'react-virtuoso'
-import { rendererApplication } from '@/app/renderer-application'
-import { contentColumnClassName, paddedContentColumnClassName } from '@/components/layout/contentColumn'
-import { useMyCopilots } from '@/hooks/useCopilots'
+
 import { platformTypeAtom } from '@/hooks/useNeedRoomForWinControls'
 import { useIsSmallScreen } from '@/hooks/useScreenChange'
 import { useSessionControls } from '@/hooks/useSessionLockState'
@@ -62,13 +62,13 @@ import { BlockCodeCollapsedStateProvider } from '../Markdown'
 import ForkGroup from './ForkGroup'
 import ForkMarkerMessage from './ForkMarkerMessage'
 import Message from './Message'
-import MessageMinimapRail from './MessageMinimapRail'
-import MessageNavigation, { FLOATING_BUTTON_GLASS_PROPS, ScrollToBottomButton } from './MessageNavigation'
 import { getSessionAssistantName } from './message-header'
 import { areMinimapAnchorsEqual, buildMessageMinimapAnchors } from './message-navigation-utils'
 import { buildTranscriptRenderItems } from './message-render-items'
-import SummaryMessage from './SummaryMessage'
+import MessageMinimapRail from './MessageMinimapRail'
+import MessageNavigation, { FLOATING_BUTTON_GLASS_PROPS, ScrollToBottomButton } from './MessageNavigation'
 import { createSendFollowIntent, sendFromHistoryFollowsTail } from './send-follow-intent'
+import SummaryMessage from './SummaryMessage'
 import { getTranscriptFirstItemIndex, getTranscriptItemLocation, withTopInset } from './transcript-virtuoso-position'
 
 type Transcript = ReturnType<typeof useSessionTranscript>
@@ -106,8 +106,8 @@ const MessageList = forwardRef<
   const hideSystemPromptSetting = useSettingsStore((state) => state.hideSystemPromptMessage)
   const globalMaxContextMessageCount = useSettingsStore((state) => state.maxContextMessageCount)
   const sessionMode = resolveSessionMode(useSessionAgentMode(session.id).value)
-  const { copilots } = useMyCopilots()
-  const assistantName = getSessionAssistantName(session, copilots)
+
+  const assistantName = getSessionAssistantName(session, [])
   const controls = useSessionControls(session, session.id)
   const sessionLocks = controls.locks
   const hideSystemPrompt = hideSystemPromptSetting || !isActionAvailableInMode('session-system-prompt', sessionMode)

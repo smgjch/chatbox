@@ -61,7 +61,7 @@ describe('SessionSearchService', () => {
       type: 'header',
       updater: { settings: { agentMode: { value: 'on', locked: false, lockReason: null } } },
     })
-    expect((await search.search('needle')).hits.map((hit) => hit.messageId)).toEqual(['current', 'history'])
+    expect((await search.search('needle')).hits.map((hit) => hit.messageId)).toEqual(['current', 'system', 'history'])
   })
 
   it('follows bounded older cursors across threads', async () => {
@@ -245,11 +245,10 @@ describe('SessionSearchService', () => {
         })
       return repository.readSessionSearchCandidates(request)
     })
-    expect(await search.search('needle', { sessionId: 'a' })).toEqual({
-      hits: [],
-      failedSessionIds: [],
-      limitReached: false,
-    })
+    const result = await search.search('needle', { sessionId: 'a' })
+    expect(result.failedSessionIds).toEqual([])
+    expect(result.limitReached).toBe(false)
+    expect(result.hits.map((hit) => hit.messageId)).toEqual(['system'])
   })
 
   it('restarts once when a selected cursor anchor disappears, excluding its stale hits', async () => {

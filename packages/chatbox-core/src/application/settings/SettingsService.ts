@@ -1,3 +1,4 @@
+import { chatOnlySettings } from '@shared/chat-only'
 import {
   createDefaultSettings,
   decodePersistedSettings,
@@ -5,12 +6,11 @@ import {
   mergeSettingsWithDefaults,
   migrateSettings,
   SETTINGS_PERSIST_VERSION,
+  SettingsSchema,
   type Settings,
   type SettingsHostDefaults,
-  SettingsSchema,
 } from '../../domain/settings'
 import type { LoggerPort, SettingsRepositoryPort, SettingsStoragePort, SettingsUpdate } from '../../ports'
-import { createMemoryStateToken } from '../../types/agent-persona'
 
 export type SettingsListener = (settings: Settings, previousSettings: Settings) => void
 
@@ -54,7 +54,7 @@ export class SettingsService implements SettingsRepositoryPort {
     private readonly storage: SettingsStoragePort,
     private readonly options: SettingsServiceOptions
   ) {
-    this.snapshot = options.initialSettings ?? createDefaultSettings()
+    this.snapshot = chatOnlySettings(options.initialSettings ?? createDefaultSettings())
   }
 
   hydrate(): Promise<Settings> {
@@ -95,9 +95,7 @@ export class SettingsService implements SettingsRepositoryPort {
         nextRecord[key] = parsedRecord[key]
       }
     }
-    if ((this.snapshot.memoryEnabled !== false) !== (parsed.memoryEnabled !== false)) {
-      nextRecord.memoryStateToken = createMemoryStateToken()
-    }
+
     const next = nextRecord as unknown as Settings
     this.publish(next)
     this.enqueuePersistence(next)
@@ -152,6 +150,7 @@ export class SettingsService implements SettingsRepositoryPort {
   }
 
   private publish(next: Settings): void {
+    next = chatOnlySettings(next)
     const previous = this.snapshot
     this.snapshot = next
     for (const listener of this.listeners) {
@@ -160,7 +159,7 @@ export class SettingsService implements SettingsRepositoryPort {
   }
 
   private enqueuePersistence(settings: Settings): void {
-    const value = encodePersistedSettings(settings)
+    const value = encodePersistedSettings(chatOnlySettings(settings))
     const write = this.persistenceQueue.catch(() => undefined).then(() => this.storage.write(value))
     this.persistenceQueue = write
     void write.catch((error) =>

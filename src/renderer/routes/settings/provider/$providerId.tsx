@@ -1,3 +1,21 @@
+import { createModelDependencies } from '@/adapters'
+import { trackJkClickEvent } from '@/analytics/jk'
+import { JK_EVENTS, JK_PAGE_NAMES } from '@/analytics/jk-events'
+import { AdaptiveSelect } from '@/components/AdaptiveSelect'
+import { AdaptiveModal } from '@/components/common/AdaptiveModal'
+import PopoverConfirm from '@/components/common/PopoverConfirm'
+import { ScalableIcon } from '@/components/common/ScalableIcon'
+import { ModelList } from '@/components/ModelList'
+import { SettingRow, SettingSwitchRow, SettingsPage, SettingsSection } from '@/components/settings/SettingsLayout'
+import { AppTooltip as Tooltip } from '@/components/ui/tooltip'
+import { useOAuth } from '@/hooks/useOAuth'
+import { useOAuthProviders } from '@/hooks/useOAuthProviders'
+import { enrichModelsFromRegistry, forceRefreshRegistry, useModelRegistryVersion } from '@/packages/model-registry'
+import { getModelSettingUtil } from '@/packages/model-setting-utils'
+import platform from '@/platform'
+import { settingsStore, useLanguage, useProviderSettings, useSettingsStore } from '@/stores/settingsStore'
+import { add as addToast } from '@/stores/toastActions'
+import { type ModelTestState, testModelCapabilities } from '@/utils/model-tester'
 import NiceModal from '@ebay/nice-modal-react'
 import {
   ActionIcon,
@@ -46,24 +64,6 @@ import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { uniq } from 'lodash'
 import { type ChangeEvent, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { createModelDependencies } from '@/adapters'
-import { trackJkClickEvent } from '@/analytics/jk'
-import { JK_EVENTS, JK_PAGE_NAMES } from '@/analytics/jk-events'
-import { AdaptiveSelect } from '@/components/AdaptiveSelect'
-import { AdaptiveModal } from '@/components/common/AdaptiveModal'
-import PopoverConfirm from '@/components/common/PopoverConfirm'
-import { ScalableIcon } from '@/components/common/ScalableIcon'
-import { ModelList } from '@/components/ModelList'
-import { SettingRow, SettingSwitchRow, SettingsPage, SettingsSection } from '@/components/settings/SettingsLayout'
-import { AppTooltip as Tooltip } from '@/components/ui/tooltip'
-import { useOAuth } from '@/hooks/useOAuth'
-import { useOAuthProviders } from '@/hooks/useOAuthProviders'
-import { enrichModelsFromRegistry, forceRefreshRegistry, useModelRegistryVersion } from '@/packages/model-registry'
-import { getModelSettingUtil } from '@/packages/model-setting-utils'
-import platform from '@/platform'
-import { settingsStore, useLanguage, useProviderSettings, useSettingsStore } from '@/stores/settingsStore'
-import { add as addToast } from '@/stores/toastActions'
-import { type ModelTestState, testModelCapabilities } from '@/utils/model-tester'
 import { showsNetworkCompatibility } from './-networkCompatibility'
 
 export const Route = createFileRoute('/settings/provider/$providerId')({
@@ -143,7 +143,13 @@ function normalizeAPIHost(
     case ModelProviderType.Claude:
       return normalizeClaudeHost(providerSettings?.apiHost || '')
     case ModelProviderType.Gemini:
-      return normalizeGeminiHost(providerSettings?.apiHost || '')
+      return {
+        ...normalizeGeminiHost(providerSettings?.apiHost || ''),
+        apiPath:
+          '/models/' +
+          (providerSettings?.models?.[0]?.modelId || '[model]') +
+          (providerSettings?.geminiStreaming === false ? ':generateContent' : ':streamGenerateContent?alt=sse'),
+      }
     case ModelProviderType.OpenAIResponses:
       return normalizeOpenAIResponsesHostAndPath({
         apiHost: providerSettings?.apiHost,
@@ -293,7 +299,9 @@ function ProviderSettings({ providerId }: { providerId: string }) {
     })
   }
 
-  const rawModels = providerSettings?.models || baseInfo?.defaultSettings?.models || []
+  const rawModels = (providerSettings?.models || baseInfo?.defaultSettings?.models || []).filter(
+    (model) => !model.type || model.type === 'chat'
+  )
   const displayModels = enrichModelsFromRegistry(rawModels, providerId)
   const usesResponsesTransportForOAuth = [ModelProviderEnum.OpenAI, ModelProviderEnum.OpenAIResponses].includes(
     providerId as ModelProviderEnum
@@ -485,12 +493,7 @@ function ProviderSettings({ providerId }: { providerId: string }) {
   const isSystemManagedModelList = false
   const showApiKey =
     !isOAuthOnlyProvider &&
-    ![
-      ModelProviderEnum.Ollama,
-      ModelProviderEnum.LMStudio,
-      ModelProviderEnum.Bedrock,
-      '',
-    ].includes(baseInfo.id)
+    ![ModelProviderEnum.Ollama, ModelProviderEnum.LMStudio, ModelProviderEnum.Bedrock, ''].includes(baseInfo.id)
   const showNetworkCompatibility = showsNetworkCompatibility(baseInfo, platform.type)
   const customApiHost = normalizeAPIHost(providerSettings, baseInfo.type)
   const azureEndpoint = normalizeAzureEndpoint(providerSettings?.endpoint || baseInfo.defaultSettings?.endpoint || '')
@@ -629,6 +632,41 @@ function ProviderSettings({ providerId }: { providerId: string }) {
                     ]}
                   />
                 )}
+              />
+            </>
+          )}
+
+          {baseInfo.isCustom && baseInfo.type === ModelProviderType.Gemini && (
+            <>
+              <SettingRow
+                id="gemini-auth-mode"
+                label={t('Gemini authentication')}
+                controlLayout="block"
+                control={(fieldId) => (
+                  <AdaptiveSelect
+                    id={fieldId}
+                    aria-label={t('Gemini authentication') ?? undefined}
+                    value={providerSettings?.geminiAuthMode ?? 'google-api-key'}
+                    allowDeselect={false}
+                    data={[
+                      { value: 'google-api-key', label: 'Google API Key (x-goog-api-key)' },
+                      { value: 'bearer', label: 'Bearer Token (Authorization)' },
+                    ]}
+                    onChange={(value) => setProviderSettings({ geminiAuthMode: value as 'google-api-key' | 'bearer' })}
+                  />
+                )}
+              />
+              <SettingSwitchRow
+                label={t('Include model in request body')}
+                description={t('Required by some Gemini gateways such as AGIHub.')}
+                checked={providerSettings?.geminiIncludeModel ?? providerSettings?.geminiAuthMode === 'bearer'}
+                onChange={(checked) => setProviderSettings({ geminiIncludeModel: checked })}
+              />
+              <SettingSwitchRow
+                label={t('Gemini streaming')}
+                description={t('Disable for gateways that only support generateContent.')}
+                checked={providerSettings?.geminiStreaming !== false}
+                onChange={(checked) => setProviderSettings({ geminiStreaming: checked })}
               />
             </>
           )}
@@ -819,6 +857,7 @@ function ProviderSettings({ providerId }: { providerId: string }) {
                       data-testid={TestId.settings.providerApiPath}
                       aria-label={t('API Path') ?? undefined}
                       value={providerSettings?.apiPath}
+                      disabled={baseInfo.type === ModelProviderType.Gemini}
                       onChange={handleApiPathChange}
                       placeholder={customApiHost.apiPath}
                     />

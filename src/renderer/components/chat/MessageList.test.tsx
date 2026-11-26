@@ -1,4 +1,6 @@
 // @vitest-environment jsdom
+import { platformTypeAtom } from '@/hooks/useNeedRoomForWinControls'
+import type { TranscriptNavigation } from '@/stores/uiStore'
 import type {
   SessionCommandDelta,
   SessionHeaderRead,
@@ -13,8 +15,6 @@ import { getDefaultStore } from 'jotai'
 import { createRef, type ReactNode } from 'react'
 import type { FlatScrollIntoViewLocation } from 'react-virtuoso'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
-import { platformTypeAtom } from '@/hooks/useNeedRoomForWinControls'
-import type { TranscriptNavigation } from '@/stores/uiStore'
 import MessageList, { type MessageListRef } from './MessageList'
 import type { MessageMinimapRailProps } from './MessageMinimapRail'
 
@@ -523,11 +523,13 @@ describe('row transcript host', () => {
       const actions = h.renderMenu.mock.calls
         .at(-1)?.[0]
         .flatMap((item: { text?: string }) => (item.text ? [item.text] : []))
-      expect(actions).toEqual(
-        mode === 'on'
-          ? ['Edit Thread Name', 'Show in Thread List']
-          : ['Edit Thread Name', 'Show in Thread List', 'Continue this thread', 'Move to Conversations', 'delete']
-      )
+      expect(actions).toEqual([
+        'Edit Thread Name',
+        'Show in Thread List',
+        'Continue this thread',
+        'Move to Conversations',
+        'delete',
+      ])
     }
   )
   test('hides the sole thread heading when the other thread rows are empty', async () => {

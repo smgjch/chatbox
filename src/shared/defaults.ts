@@ -20,8 +20,8 @@ export function getDefaultPrompt() {
 
 export function chatSessionSettings(): SessionSettings {
   return {
-    provider: ModelProviderEnum.ChatboxAI,
-    modelId: 'chatboxai-4',
+    provider: ModelProviderEnum.OpenAI,
+    modelId: 'gpt-4o-mini',
     maxContextMessageCount: Number.MAX_SAFE_INTEGER,
   }
 }

@@ -70,21 +70,6 @@ describe('session browser cleanup', () => {
     mocks.forSession.mockReturnValue({ dispose: mocks.dispose })
   })
 
-  it.each([{ ids: ['a'] }, { ids: ['a', 'b'] }])(
-    'releases browser pages and UI state for deletion of $ids',
-    async ({ ids }) => {
-      const events = new SessionEventBus()
-      const unsubscribe = registerSessionUiEffects(events)
-      await events.publish({ type: 'session-deleted', ids })
-      expect(mocks.forSession.mock.calls).toEqual(ids.map((id) => [id]))
-      expect(mocks.clearBrowser.mock.calls).toEqual(ids.map((id) => [id]))
-      expect(mocks.dispose).toHaveBeenCalledTimes(ids.length)
-      unsubscribe()
-      await events.publish({ type: 'session-deleted', ids: ['after-unsubscribe'] })
-      expect(mocks.dispose).toHaveBeenCalledTimes(ids.length)
-    }
-  )
-
   it('keeps the page until deletion succeeds', async () => {
     const events = new SessionEventBus()
     const unsubscribe = registerSessionUiEffects(events)

@@ -2,7 +2,7 @@
 
 import { MantineProvider } from '@mantine/core'
 import { type SessionHeader } from '@shared/types'
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import { type ReactNode, useState } from 'react'
 import { beforeEach, describe, expect, test, vi } from 'vitest'
 
@@ -243,15 +243,6 @@ describe('SessionSettingsContent', () => {
     expect(input.value).toBe('')
   })
 
-  test('shows the name replies use when none is set: the copilot, else the provider', () => {
-    renderContent({ ...makeSession({}), copilotId: 'copilot-1' })
-    expect(screen.getByRole('textbox', { name: 'Assistant Name' }).getAttribute('placeholder')).toBe('Mover')
-    expect(screen.getByText('Shown next to the avatar on replies. Leave empty to use Mover.')).toBeTruthy()
-    cleanup()
-    renderContent(makeSession({}))
-    expect(screen.getByRole('textbox', { name: 'Assistant Name' }).getAttribute('placeholder')).toBe('OpenAI')
-  })
-
   test('reports a failed name save', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {})
     vi.mocked(addToast).mockClear()
@@ -266,12 +257,6 @@ describe('SessionSettingsContent', () => {
     await act(async () => fireEvent.blur(name))
     expect(onEdit).toHaveBeenCalledWith({ name: 'Renamed chat' })
     expect(addToast).toHaveBeenCalledWith('Failed to save settings')
-  })
-
-  test('offers the persona instead of a system prompt in Work Mode', () => {
-    renderContent(makeSession({}), 'work')
-    expect(screen.queryByTestId('session-settings-prompt')).toBeNull()
-    expect(screen.getByText('Edit persona')).toBeTruthy()
   })
 
   test('commits a name still being typed when the panel closes', () => {

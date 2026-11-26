@@ -1,12 +1,14 @@
+import { useProviders } from '@/hooks/useProviders'
+import useVersion from '@/hooks/useVersion'
+import platform from '@/platform'
+import { useSettingsStore } from '@/stores/settingsStore'
+import { featureFlags } from '@/utils/feature-flags'
 import { DEFAULT_COMPACTION_THRESHOLD } from '@chatbox/core/application/token-estimation/math'
 import { TestId } from '@shared/automation/testids'
 import { Theme } from '@shared/types'
 import { MAX_TOOL_CALLS_BEFORE_CONFIRMATION } from '@shared/utils/tool-call-limit-pause'
 import {
-  IconBook,
-  IconBrain,
   IconCategory,
-  IconCircleDottedLetterM,
   IconDatabase,
   IconFileText,
   IconInfoCircle,
@@ -15,20 +17,11 @@ import {
   IconMessages,
   IconPalette,
   type IconProps,
-  IconRobotFace,
-  IconSparkles,
   IconStack2,
   IconTool,
-  IconWand,
-  IconWorldWww,
 } from '@tabler/icons-react'
 import type { ElementType } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useProviders } from '@/hooks/useProviders'
-import useVersion from '@/hooks/useVersion'
-import platform from '@/platform'
-import { useSettingsStore } from '@/stores/settingsStore'
-import { featureFlags } from '@/utils/feature-flags'
 
 export type SettingsPageKey =
   | 'chatbox-ai'
@@ -64,27 +57,7 @@ export interface SettingsNavGroup {
 
 /** Settings navigation shared by the desktop sidebar, the small-screen index and settings search. */
 export function getSettingsNavGroups(): SettingsNavGroup[] {
-  const capabilities: SettingsNavItem[] = [
-    { key: 'web-search', label: 'Web Search', icon: IconWorldWww },
-    ...(featureFlags.mcp
-      ? [{ key: 'mcp' as const, label: 'MCP', noTranslate: true, icon: IconCircleDottedLetterM }]
-      : []),
-    ...(featureFlags.knowledgeBase
-      ? [{ key: 'knowledge-base' as const, label: 'Knowledge Base', icon: IconBook }]
-      : []),
-    ...(featureFlags.skills || platform.type === 'mobile'
-      ? [{ key: 'skills' as const, label: 'Skills', noTranslate: true, icon: IconWand }]
-      : []),
-    // Memory works on every platform, so the page stays reachable where agent mode does not
-    // run — narrowed there to the memory controls it can actually offer.
-    featureFlags.agentMode
-      ? { key: 'agent', label: 'Agent & Memory', icon: IconRobotFace }
-      : { key: 'agent', label: 'Memory', icon: IconBrain },
-    { key: 'document-parser', label: 'Document Parser', icon: IconFileText },
-  ]
-
   return [
-    { title: 'Account', items: [{ key: 'chatbox-ai', label: 'Chatbox AI', noTranslate: true, icon: IconSparkles }] },
     {
       title: 'Models',
       items: [
@@ -97,12 +70,12 @@ export function getSettingsNavGroups(): SettingsNavGroup[] {
         },
       ],
     },
-    { title: 'Capabilities', items: capabilities },
     {
       title: 'Chat',
       items: [
         { key: 'chat', label: 'Chat', icon: IconMessages, testId: TestId.settings.navChat },
         { key: 'context', label: 'Context & Compaction', icon: IconStack2, testId: TestId.settings.navContext },
+        { key: 'document-parser', label: 'Document Parser', icon: IconFileText },
       ],
     },
     {
@@ -114,7 +87,7 @@ export function getSettingsNavGroups(): SettingsNavGroup[] {
           : [{ key: 'hotkeys' as const, label: 'Keyboard Shortcuts', icon: IconKeyboard }]),
         { key: 'data', label: 'Data & Backup', icon: IconDatabase, testId: TestId.settings.navData },
         { key: 'advanced', label: 'Advanced', icon: IconTool, testId: TestId.settings.navAdvanced },
-        { key: 'about', label: 'About & Updates', icon: IconInfoCircle, testId: TestId.settings.navAbout },
+        { key: 'about', label: 'About Chatbox', icon: IconInfoCircle, testId: TestId.settings.navAbout },
       ],
     },
   ]

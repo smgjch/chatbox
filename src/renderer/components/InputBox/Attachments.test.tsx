@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 
+import { render, screen } from '@/test-utils'
 import { MantineProvider } from '@mantine/core'
 import { fireEvent } from '@testing-library/react'
 import { describe, expect, test, vi } from 'vitest'
-import { render, screen } from '@/test-utils'
 import { FileMiniCard, MessageAttachment } from './Attachments'
 
 Object.defineProperty(window, 'matchMedia', {
@@ -28,30 +28,6 @@ vi.mock('react-i18next', () => ({
 }))
 
 describe('FileMiniCard session attachment failure', () => {
-  test('shows the available action for a missing Chatbox AI account license', async () => {
-    const onErrorClick = vi.fn()
-    render(
-      <MantineProvider>
-        <FileMiniCard
-          name="lecture.pdf"
-          fileType="application/pdf"
-          status="error"
-          errorMessage="chatbox_ai_parser_license_key_required"
-          onDelete={vi.fn()}
-          onErrorClick={onErrorClick}
-        />
-      </MantineProvider>
-    )
-
-    expect(screen.getByText('Sign in needed')).toBeTruthy()
-    fireEvent.pointerMove(screen.getByText('lecture.pdf').parentElement as HTMLElement)
-    const tooltip = await screen.findByRole('tooltip')
-    expect(tooltip.textContent).toContain('Sign in to Chatbox AI')
-    expect(tooltip.textContent).not.toContain('choose a different document parser')
-    fireEvent.click(screen.getByRole('button', { name: 'lecture.pdf: Sign in needed' }))
-    expect(onErrorClick).toHaveBeenCalledOnce()
-  })
-
   test('shows an indexing failure and lets the user continue the failed checkpoint', () => {
     const onRecover = vi.fn()
     const onErrorClick = vi.fn()

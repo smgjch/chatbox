@@ -1,7 +1,7 @@
 import { Flex } from '@mantine/core'
 import type { ProviderModelInfo } from '@shared/types'
 import type { TablerIcon } from '@tabler/icons-react'
-import { IconBulb, IconEye, IconTool } from '@tabler/icons-react'
+import { IconBulb, IconEye } from '@tabler/icons-react'
 import clsx from 'clsx'
 import { useTranslation } from 'react-i18next'
 import { ScalableIcon } from '../common/ScalableIcon'
@@ -32,7 +32,6 @@ export function CapabilityIconRow({
     [
       { id: 'vision', label: t('Vision'), icon: IconEye },
       { id: 'reasoning', label: t('Reasoning'), icon: IconBulb },
-      { id: 'tool_use', label: t('Tool Use'), icon: IconTool },
     ] satisfies Array<{ id: DetailCapabilityId; label: string; icon: TablerIcon }>
   ).filter((item) => capabilities?.includes(item.id))
 

@@ -1,8 +1,2 @@
-import platform from '@/platform'
-
-export const featureFlags = {
-  mcp: platform.isDesktopLike || platform.type === 'mobile',
-  knowledgeBase: platform.isDesktopLike,
-  skills: platform.isDesktopLike,
-  agentMode: platform.isDesktopLike || platform.type === 'mobile',
-}
+// This fork exposes chat only on every platform. Not a runtime preference.
+export const featureFlags = { mcp: false, knowledgeBase: false, skills: false, agentMode: false }

@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { isActionAvailableInMode, resolveSessionMode, shouldRestrictMessageEditToLastOutput } from './mode-policy'
 
 describe('resolveSessionMode', () => {
-  it('maps on to work and everything else to chat', () => {
-    expect(resolveSessionMode('on')).toBe('work')
+  it('treats every legacy mode as chat', () => {
+    expect(resolveSessionMode('on')).toBe('chat')
     expect(resolveSessionMode('off')).toBe('chat')
     expect(resolveSessionMode('auto')).toBe('chat')
     expect(resolveSessionMode(undefined)).toBe('chat')

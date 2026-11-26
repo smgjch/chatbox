@@ -1,17 +1,5 @@
 import type { ProviderModelInfo } from '@shared/types'
-import type { ChatboxAIModel, FavoriteModel, FilteredProvider } from './types'
-
-export function toProviderModelInfo(model: ChatboxAIModel): ProviderModelInfo {
-  return {
-    modelId: model.modelId,
-    nickname: model.modelName,
-    labels: model.labels,
-    capabilities: model.capabilities,
-    type: model.type,
-    apiStyle: model.apiStyle,
-    contextWindow: model.contextWindow || undefined,
-  }
-}
+import type { FavoriteModel, FilteredProvider } from './types'
 
 export function groupFavorites(favorites: FavoriteModel[] | undefined) {
   return (favorites || []).reduce(

@@ -7,15 +7,15 @@
       content="%VIEWPORT_CONTENT%"
     />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-title" content="chatbox" />
+    <meta name="apple-mobile-web-app-title" content="Chatbox Lite" />
     <meta name="theme-color" content="#000000" />
     <meta
       name="description"
-      content="Chat with GPT 6 Astra, Claude Fable 5.1, Gemini 3.8 Flash, Grok-4.6, Kimi-K3, DeepSeek V4 Pro, and more in one AI chat app. Start online in your browser, or download Chatbox for desktop and mobile."
+      content="A local chat client with custom OpenAI, Claude and Gemini providers."
     />
     <link rel="apple-touch-icon" href="/logo192.png" />
     <link rel="icon" href="/favicon.ico" sizes="any" />
-    <title>Chatbox Web App: AI Chat Online with GPT, Claude &amp; More</title>
+    <title>Chatbox Lite</title>
     <script>
       // The source HTML is a Vite entry and cannot run when opened as file:// in a browser.
       // Electron also loads this file through file://, so its preload bridge must bypass this guard.
@@ -27,39 +27,11 @@
           if (splash) splash.remove()
           if (root) {
             root.innerHTML =
-              '<div class="startup-error">Chatbox Web App needs to be started through a web server. Run <code>pnpm dev:web:standalone</code> and open <code>http://localhost:1212</code>.</div>'
+              '<div class="startup-error">Chatbox Lite needs to be started through a web server. Run <code>pnpm dev:web:standalone</code> and open <code>http://localhost:1212</code>.</div>'
           }
         })
       }
-    </script>
-    <!-- Google tag (gtag.js) -->
-    <script
-      async
-      src="https://www.googletagmanager.com/gtag/js?id=G-B365F44W6E"
-    ></script>
-    <script
-      defer
-      data-domain="app.chatboxai.app"
-      src="https://plausible.midway.run/js/script.local.hash.manual.js"
-    ></script>
-    <script>
-      window.plausible =
-        window.plausible ||
-        function () {
-          (window.plausible.q = window.plausible.q || []).push(arguments);
-        };
-    </script>
-
-    <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag() {
-        dataLayer.push(arguments);
-      }
-      gtag("js", new Date());
-
-      // gtag('config', 'G-B365F44W6E');
-    </script>
-    <script>
+    </script><script>
       var initialTheme = localStorage.getItem("initial-theme");
       if (initialTheme === "light" || initialTheme === "dark") {
         document.documentElement.setAttribute("data-theme", initialTheme);

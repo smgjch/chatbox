@@ -1,17 +1,16 @@
+import { parseLocale } from '@/i18n/parser'
+import { type ImageGenerationStorage, IndexedDBImageGenerationStorage } from '@/storage/ImageGenerationStorage'
+import { IndexedDBSessionMetaStorage, type SessionMetaStorage } from '@/storage/SessionMetaStorage'
+import { IndexedDBSessionRowStore } from '@/storage/SessionRowStorage'
 import type { SessionRowStorePort } from '@chatbox/core/ports'
 import { type AnalyticsEventParams, GOOGLE_ANALYTICS_MEASUREMENT_ID } from '@shared/analytics'
 import * as defaults from '@shared/defaults'
 import type { Config, Settings, ShortcutSetting } from '@shared/types'
 import localforage from 'localforage'
 import { v4 as uuidv4 } from 'uuid'
-import { parseLocale } from '@/i18n/parser'
-import { type ImageGenerationStorage, IndexedDBImageGenerationStorage } from '@/storage/ImageGenerationStorage'
-import { IndexedDBSessionMetaStorage, type SessionMetaStorage } from '@/storage/SessionMetaStorage'
-import { IndexedDBSessionRowStore } from '@/storage/SessionRowStorage'
 import { getBrowser, getOS } from '../packages/navigator'
 import type { Platform, PlatformType } from './interfaces'
-import type { KnowledgeBaseController } from './knowledge-base/interface'
-import type { SessionAttachmentRagController } from './session-attachment-rag/interface'
+
 import { IndexedDBStorage } from './storages'
 import WebExporter from './web_exporter'
 import webLogger from './web_logger'
@@ -191,14 +190,6 @@ export default class WebPlatform extends IndexedDBStorage implements Platform {
 
   installUpdate(): Promise<void> {
     throw new Error('Method not implemented.')
-  }
-
-  public getKnowledgeBaseController(): KnowledgeBaseController {
-    throw new Error('Method not implemented.')
-  }
-
-  public getSessionAttachmentRagController(): SessionAttachmentRagController {
-    throw new Error('Session attachment RAG is not implemented on web.')
   }
 
   public getImageGenerationStorage(): ImageGenerationStorage {

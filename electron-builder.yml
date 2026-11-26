@@ -1,5 +1,5 @@
-productName: Chatbox
-appId: xyz.chatboxapp.app
+productName: Chatbox Lite
+appId: io.github.smgjch.chatboxlite
 # Match packages/chatbox-i18n/src/languages.ts using Windows/Linux locale filenames.
 electronLanguages:
   - en-US
@@ -20,19 +20,15 @@ electronLanguages:
 asar: true
 asarUnpack:
   - "**/*.{node,dll}"
-  - "**/node_modules/libsql/**"
 files:
   - "dist"
-  # - "!dist/**/*.map"
-  # - "!dist/**/stats.html"
+  - "!dist/**/*.map"
+  - "!dist/**/stats.html"
   - "node_modules"
   - "!node_modules/@types"
   - "!node_modules/undici-types"
   - "package.json"
 
-beforePack: .erb/scripts/ensure-app-deps.cjs
-afterPack: .erb/scripts/after-pack.cjs
-afterSign: .erb/scripts/notarize.js
 
 # releaseInfo:
 #   releaseNotes: See the changelog for details
@@ -63,7 +59,7 @@ mac:
       - arm64
       - x64
   type: distribution
-  hardenedRuntime: true
+  hardenedRuntime: false
   entitlements: assets/entitlements.mac.plist
   entitlementsInherit: assets/entitlements.mac.plist
   gatekeeperAssess: false
@@ -85,10 +81,6 @@ win:
         - arm64
   verifyUpdateCodeSignature: false
   artifactName: ${productName}-${version}-Setup.${ext}
-  signtoolOptions:
-    sign: ./custom_win_sign.js
-    signingHashAlgorithms:
-      - sha256
 
 nsis:
   oneClick: false
@@ -116,9 +108,4 @@ directories:
 extraResources:
   - ./assets/**
 
-publish:
-  - provider: s3
-    bucket: chatbox
-    endpoint: https://208624959c9d215edea0720162a740c1.r2.cloudflarestorage.com
-    path: /releases
-    channel: ${env.UPDATE_CHANNEL}
+publish: null

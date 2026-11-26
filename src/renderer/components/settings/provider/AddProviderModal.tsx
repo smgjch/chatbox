@@ -1,13 +1,13 @@
-import { Button, Flex, Select, Stack, Text, TextInput } from '@mantine/core'
+import { AdaptiveSelect } from '@/components/AdaptiveSelect'
+import { AdaptiveModal } from '@/components/common/AdaptiveModal'
+import { useSettingsStore } from '@/stores/settingsStore'
+import { Button, Stack, Text, TextInput } from '@mantine/core'
 import { TestId } from '@shared/automation/testids'
 import { ModelProviderType } from '@shared/types'
 import { useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { v4 as uuidv4 } from 'uuid'
-import { AdaptiveSelect } from '@/components/AdaptiveSelect'
-import { AdaptiveModal } from '@/components/common/AdaptiveModal'
-import { useSettingsStore } from '@/stores/settingsStore'
 
 interface AddProviderModalProps {
   opened: boolean
@@ -19,8 +19,10 @@ export function AddProviderModal({ opened, onClose }: AddProviderModalProps) {
   const navigate = useNavigate()
   const setSettings = useSettingsStore((s) => s.setSettings)
   const customProviders = useSettingsStore((s) => s.customProviders)
+  const providers = useSettingsStore((s) => s.providers)
   const [newProviderName, setNewProviderName] = useState('')
   const [newProviderMode, setNewProviderMode] = useState<ModelProviderType>(ModelProviderType.OpenAI)
+  const [useAgihubPreset, setUseAgihubPreset] = useState(false)
 
   const handleAddProvider = () => {
     const pid = `custom-provider-${uuidv4()}`
@@ -29,11 +31,33 @@ export function AddProviderModal({ opened, onClose }: AddProviderModalProps) {
         ...(customProviders || []),
         {
           id: pid,
-          name: newProviderName,
+          name: newProviderName.trim(),
           type: newProviderMode,
           isCustom: true,
         },
       ],
+      ...(useAgihubPreset && newProviderMode === ModelProviderType.Gemini
+        ? {
+            providers: {
+              ...providers,
+              [pid]: {
+                apiHost: 'https://agihub.bytedance.net/api_proxy/auto_mode/call/v1beta',
+                geminiAuthMode: 'bearer',
+                geminiIncludeModel: true,
+                geminiStreaming: false,
+                models: [
+                  {
+                    modelId: 'gemini-4-argon',
+                    type: 'chat',
+                    apiStyle: 'google',
+                    thinkingMode: 'level',
+                    capabilities: ['reasoning', 'vision'],
+                  },
+                ],
+              },
+            },
+          }
+        : {}),
     })
     onClose()
     navigate({
@@ -47,6 +71,16 @@ export function AddProviderModal({ opened, onClose }: AddProviderModalProps) {
   return (
     <AdaptiveModal size="sm" opened={opened} onClose={onClose} centered title={t('Add provider')}>
       <Stack gap="xs">
+        <Button
+          variant="light"
+          onClick={() => {
+            setNewProviderName('AGIHub Gemini')
+            setNewProviderMode(ModelProviderType.Gemini)
+            setUseAgihubPreset(true)
+          }}
+        >
+          {t('Use AGIHub Gemini preset')}
+        </Button>
         <Text>{t('Name')}</Text>
         <TextInput
           data-testid={TestId.settings.addProviderName}

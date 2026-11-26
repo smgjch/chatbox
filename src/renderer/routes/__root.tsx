@@ -1,3 +1,31 @@
+import { currentBlobStorage } from '@/adapters/CurrentBlobStorage'
+import { JK_PAGE_NAMES } from '@/analytics/jk-events'
+import { trackPageView } from '@/analytics/page-view'
+import { createPageViewVisitGate } from '@/analytics/page-view-visit-gate'
+import { rendererApplication } from '@/app/renderer-application'
+import { AppProviders } from '@/components/AppProviders'
+import { ErrorBoundary } from '@/components/common/ErrorBoundary'
+import Toasts from '@/components/common/Toasts'
+import DbSchemaGuardDialog from '@/components/DbSchemaGuardDialog'
+import { AppTitleBar, useAppTitleBarHeight } from '@/components/layout/AppTitleBar'
+import ExitFullscreenButton from '@/components/layout/ExitFullscreenButton'
+import { BackupTaskOverlay } from '@/components/settings/BackupTaskOverlay'
+import useAppTheme from '@/hooks/useAppTheme'
+import { useSystemLanguageWhenInit } from '@/hooks/useDefaultSystemLanguage'
+import { useI18nEffect } from '@/hooks/useI18nEffect'
+import useNeedRoomForWinControls from '@/hooks/useNeedRoomForWinControls'
+import useScreenChange, { useIsSmallScreen, useSidebarWidth } from '@/hooks/useScreenChange'
+import useShortcut from '@/hooks/useShortcut'
+import useVersion from '@/hooks/useVersion'
+import { setChatWallpaperMarker } from '@/lib/glass-surface'
+import '@/modals'
+import SettingsModal from '@/modals/Settings'
+import { navigateToSettings } from '@/modals/settings-navigation'
+import { prefetchModelRegistry } from '@/packages/model-registry'
+import { getOS } from '@/packages/navigator'
+import { sessionStartupRecovery, useSessionStartupLoadTarget } from '@/packages/session-startup-recovery'
+import PictureDialog from '@/pages/PictureDialog'
+import { creteMantineTheme } from '@/theme/mantine-theme'
 import NiceModal from '@ebay/nice-modal-react'
 import {
   Button,
@@ -11,47 +39,17 @@ import { Box, Grid } from '@mui/material'
 import CssBaseline from '@mui/material/CssBaseline'
 import { ThemeProvider } from '@mui/material/styles'
 import { shouldNavigateToStartPage, shouldSkipOnboardingGuide, splitLaunchPath } from '@shared/dev-launch'
-import { type RemoteConfig, Theme } from '@shared/types'
+import { Theme } from '@shared/types'
 import { useQuery } from '@tanstack/react-query'
 import { createRootRoute, Outlet, useLocation } from '@tanstack/react-router'
 import clsx from 'clsx'
 import { useSetAtom } from 'jotai'
 import { useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
-import { currentBlobStorage } from '@/adapters/CurrentBlobStorage'
-import { JK_PAGE_NAMES } from '@/analytics/jk-events'
-import { trackPageView } from '@/analytics/page-view'
-import { createPageViewVisitGate } from '@/analytics/page-view-visit-gate'
-import { AppProviders } from '@/components/AppProviders'
-import { ErrorBoundary } from '@/components/common/ErrorBoundary'
-import Toasts from '@/components/common/Toasts'
-import { AppTitleBar, useAppTitleBarHeight } from '@/components/layout/AppTitleBar'
-import ExitFullscreenButton from '@/components/layout/ExitFullscreenButton'
-import useAppTheme from '@/hooks/useAppTheme'
-import { useSystemLanguageWhenInit } from '@/hooks/useDefaultSystemLanguage'
-import { useI18nEffect } from '@/hooks/useI18nEffect'
-import useNeedRoomForWinControls from '@/hooks/useNeedRoomForWinControls'
-import useScreenChange, { useIsSmallScreen, useSidebarWidth } from '@/hooks/useScreenChange'
-import useShortcut from '@/hooks/useShortcut'
-import useVersion from '@/hooks/useVersion'
-import { setChatWallpaperMarker } from '@/lib/glass-surface'
-import { creteMantineTheme } from '@/theme/mantine-theme'
-import '@/modals'
-import { rendererApplication } from '@/app/renderer-application'
-import DbSchemaGuardDialog from '@/components/DbSchemaGuardDialog'
-import { BackupTaskOverlay } from '@/components/settings/BackupTaskOverlay'
-import SettingsModal from '@/modals/Settings'
-import { navigateToSettings } from '@/modals/settings-navigation'
-import { prefetchModelRegistry } from '@/packages/model-registry'
-import { getOS } from '@/packages/navigator'
-import * as remote from '@/packages/remote'
-import { sessionStartupRecovery, useSessionStartupLoadTarget } from '@/packages/session-startup-recovery'
-import ClientNotificationWindow from '@/pages/ClientNotificationWindow'
-import PictureDialog from '@/pages/PictureDialog'
-import RemoteDialogWindow from '@/pages/RemoteDialogWindow'
+
 import SearchDialog from '@/pages/SearchDialog'
 import platform from '@/platform'
-import { getSettingsSearchParam, navigateToDynamicPath, router } from '@/router'
+import { getSettingsSearchParam, navigateToDynamicPath } from '@/router'
 import Sidebar from '@/Sidebar'
 import * as atoms from '@/stores/atoms'
 import { getRendererDevLaunchOptions } from '@/utils/dev-launch'
@@ -65,13 +63,15 @@ function getSessionIdFromPathname(pathname: string): string | null {
 }
 
 import { initOnboardingStore, onboardingStore } from '@/stores/onboardingStore'
-import * as premiumActions from '@/stores/premiumActions'
-import * as settingActions from '@/stores/settingActions'
+
 import { initSettingsStore, settingsStore, useLanguage, useSettingsStore, useTheme } from '@/stores/settingsStore'
 import { add as addToast } from '@/stores/toastActions'
 import { useUIStore } from '@/stores/uiStore'
-import { CHATBOX_BUILD_CHANNEL, CHATBOX_BUILD_PLATFORM } from '@/variables'
-import { blobToDataUrl } from './image-creator/-components/constants'
+import { CHATBOX_BUILD_PLATFORM } from '@/variables'
+function blobToDataUrl(blob: string): string {
+  if (blob.startsWith('data:')) return blob
+  return 'data:image/' + (blob.startsWith('/9j/') ? 'jpeg' : 'png') + ';base64,' + blob
+}
 
 /** The chat wallpaper's image URL on chat routes, or undefined until the image is actually available. */
 function useChatWallpaperUrl(): string | undefined {
@@ -173,83 +173,22 @@ function Root() {
       await Promise.all([initSettingsStore(), initOnboardingStore()])
       void prefetchModelRegistry()
 
-      const syncRemoteConfig = async () => {
-        const remoteConfig = await remote
-          .getRemoteConfig('setting_chatboxai_first')
-          .catch(() => ({ setting_chatboxai_first: false }) as RemoteConfig)
-        setRemoteConfig(async (prev) => ({ ...(await prev), ...remoteConfig }))
-        return remoteConfig
-      }
-
-      const launchOptions = getRendererDevLaunchOptions()
-      const skipOnboarding = shouldSkipOnboardingGuide(launchOptions)
-      if (skipOnboarding) {
-        onboardingStore.getState().markCompleted()
-        initialized.current = true
-        if (
-          launchOptions.startPage &&
-          shouldNavigateToStartPage(
-            launchOptions.startPage,
-            location.pathname,
-            location.search as Record<string, unknown>
-          )
-        ) {
-          const { pathname, search } = splitLaunchPath(launchOptions.startPage)
-          navigateToDynamicPath({
-            to: pathname,
-            replace: true,
-            search: Object.keys(search).length > 0 ? search : undefined,
-          })
-        }
-        void syncRemoteConfig()
-        return
-      }
-
-      const remoteConfig = await syncRemoteConfig()
-
-      // Skip guide-related checks if already on guide, dev tools, or settings/mcp page
-      if (
-        location.pathname === '/guide' ||
-        location.pathname.startsWith('/dev') ||
-        location.pathname === '/settings/mcp'
-      ) {
-        initialized.current = true
-        return
-      }
-
-      // On store builds (iOS / Google Play), wait for both version AND remoteConfig.current_version
-      // before making guide/navigation decisions. isExceeded depends on both async data sources;
-      // if we only wait for version, remoteConfig may still be empty, causing isExceeded to be
-      // falsely falsy and letting the guide navigation slip through during store review.
-      const isStoreReviewPlatform =
-        CHATBOX_BUILD_PLATFORM === 'ios' ||
-        (CHATBOX_BUILD_PLATFORM === 'android' && CHATBOX_BUILD_CHANNEL === 'google_play')
-      if (isStoreReviewPlatform && !isExceededResolved) {
-        return
-      }
-
+      onboardingStore.getState().markCompleted()
       initialized.current = true
-
-      // Check if user needs onboarding guide
-      // Conditions: not completed onboarding AND no valid config
-      const onboardingCompleted = onboardingStore.getState().completed
-      const needsSetup = settingActions.needEditSetting()
-
-      // Auto-navigate to guide for new users who need setup
-      if (!isExceeded && !onboardingCompleted && needsSetup) {
-        router.navigate({ to: '/guide', replace: true })
-        return
-      }
-
-      // 是否需要弹出关于窗口（更新后首次启动）
-      // 目前仅在桌面版本更新后首次启动、且网络环境为"外网"的情况下才自动弹窗
-      const shouldShowAboutDialogWhenStartUp = await platform.shouldShowAboutDialogWhenStartUp()
-      if (shouldShowAboutDialogWhenStartUp && remoteConfig.setting_chatboxai_first) {
-        setOpenAboutDialog(true)
-        return
+      const launchOptions = getRendererDevLaunchOptions()
+      if (
+        launchOptions.startPage &&
+        shouldNavigateToStartPage(
+          launchOptions.startPage,
+          location.pathname,
+          location.search as Record<string, unknown>
+        )
+      ) {
+        const { pathname, search } = splitLaunchPath(launchOptions.startPage)
+        navigateToDynamicPath({ to: pathname, replace: true, search })
       }
     })()
-  }, [setOpenAboutDialog, setRemoteConfig, location.pathname, location.search, isExceeded, isExceededResolved])
+  }, [location.pathname, location.search])
 
   const showSidebar = useUIStore((s) => s.showSidebar)
   const sidebarWidth = useSidebarWidth()
@@ -426,9 +365,7 @@ function Root() {
       {/* 图片预览 */}
       <PictureDialog />
       {/* 似乎是从后端拉一个弹窗的配置 */}
-      <RemoteDialogWindow />
       {/* 一次性客户端通知，与现有远程弹窗和更新提示保持独立 */}
-      <ClientNotificationWindow />
       {/* IndexedDB schema 与当前版本不匹配时的升级/刷新引导 */}
       <DbSchemaGuardDialog />
       <BackupTaskOverlay />
@@ -449,7 +386,7 @@ function Root() {
 export const Route = createRootRoute({
   component: () => {
     useI18nEffect()
-    premiumActions.useAutoValidate() // 每次启动都执行 license 检查，防止用户在lemonsqueezy管理页面中取消了当前设备的激活
+
     useSystemLanguageWhenInit()
     useShortcut()
     const theme = useAppTheme()

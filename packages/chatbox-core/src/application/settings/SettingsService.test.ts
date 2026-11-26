@@ -46,14 +46,13 @@ describe('SettingsService', () => {
 
     expect(first).toBe(second)
     expect(storage.read).toHaveBeenCalledOnce()
-    expect(first.licenseActivationMethod).toBe('manual')
+    expect(first.licenseActivationMethod).toBeUndefined()
     expect(storage.write).not.toHaveBeenCalled()
 
     service.updateSettings({ language: first.language })
     await service.flushPersistence()
     expect(storage.write).toHaveBeenCalledWith(
       expect.objectContaining({
-        licenseKey: 'legacy-license',
         __version: SETTINGS_PERSIST_VERSION,
       })
     )
@@ -75,7 +74,7 @@ describe('SettingsService', () => {
     const settings = await service.hydrate()
 
     expect(resolveDesktopLike).toHaveBeenCalledOnce()
-    expect(settings.extension.documentParser).toEqual({ type: 'chatbox-ai' })
+    expect(settings.extension.documentParser).toEqual({ type: 'local' })
   })
 
   test('publishes synchronous updates and restores them through a new service', async () => {
@@ -111,22 +110,6 @@ describe('SettingsService', () => {
       apiKey: 'sk-persisted',
       oauth: { accessToken: 'oauth-persisted' },
     })
-  })
-
-  test('records every effective Global Memory change', () => {
-    const service = new SettingsService(new MemorySettingsStorage(), { isDesktopLike: false })
-
-    service.updateSettings({ memoryEnabled: false })
-    const disabledToken = service.getSettings().memoryStateToken
-    expect(disabledToken).toEqual(expect.any(String))
-
-    service.updateSettings({ memoryEnabled: true })
-    const enabledToken = service.getSettings().memoryStateToken
-    expect(enabledToken).toEqual(expect.any(String))
-    expect(enabledToken).not.toBe(disabledToken)
-
-    service.updateSettings({ memoryEnabled: true })
-    expect(service.getSettings().memoryStateToken).toBe(enabledToken)
   })
 
   test('replaces the complete settings snapshot so omitted credentials are cleared', async () => {

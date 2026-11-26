@@ -100,11 +100,13 @@ export function normalizeClaudeHost(apiHost: string) {
 }
 
 export function normalizeGeminiHost(apiHost: string) {
-  apiHost = apiHost.trim()
-  if (apiHost.endsWith('/')) {
-    apiHost = apiHost.slice(0, apiHost.length - 1)
+  // Accept a host, a gateway prefix, a versioned base URL or a complete
+  // generateContent endpoint. The model selected in Chatbox owns the model path.
+  apiHost = apiHost.trim().replace(/\/+$/, '')
+  apiHost = apiHost.replace(/\/models\/[^/?]+:(?:streamGenerateContent|generateContent)(?:\?alt=sse)?$/, '')
+  if (!/\/v1(?:beta|alpha)?$/.test(apiHost)) {
+    apiHost = `${apiHost}/v1beta`
   }
-  apiHost = `${apiHost}/v1beta`
   return {
     apiHost,
     apiPath: '/models/[model]',

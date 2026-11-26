@@ -140,27 +140,6 @@ describe('thread flows carry compaction points with their messages', () => {
     expect(updatedSession().compactionPoints).toBeUndefined()
   })
 
-  it('does not create a thread in work mode', async () => {
-    await repository.seedSession({
-      ...testSession(),
-      settings: { agentMode: { value: 'on', locked: true, lockReason: null } },
-    })
-
-    await refreshContextAndCreateNewThread('session-1')
-
-    expect(await repository.rowStore.getRevision('session-1')).toBe(2)
-  })
-
-  it('does not create a thread when work mode lives in the legacy uiStore map', async () => {
-    // Upgraded sessions may carry no settings.agentMode; the mode then comes
-    // from uiStore.sessionAgentModeMap, and the backstop must honor it too.
-    uiStoreState.sessionAgentModeMap['session-1'] = { value: 'on', locked: true, lockReason: null }
-
-    await refreshContextAndCreateNewThread('session-1')
-
-    expect(await repository.rowStore.getRevision('session-1')).toBe(1)
-  })
-
   it('archives a compaction that committed after the snapshot was taken', async () => {
     const initial = { ...testSession(), messages: [message('u1', { role: 'user' })], compactionPoints: undefined }
     await repository.seedSession(initial)

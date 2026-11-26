@@ -1,17 +1,15 @@
-import { directoryFolderName, findDirectoryFolder, normalizeWorkingDirectory } from '@chatbox/core/application/session'
-import NiceModal, { useModal } from '@ebay/nice-modal-react'
-import { Button, Flex, Stack, Text, TextInput } from '@mantine/core'
-import type { SessionFolder } from '@shared/types'
-import { IconFolder, IconFolderPlus, IconX } from '@tabler/icons-react'
-import { useState } from 'react'
-import { useTranslation } from 'react-i18next'
 import { rendererApplication } from '@/app/renderer-application'
 import { AdaptiveModal } from '@/components/common/AdaptiveModal'
-import { ICON_SIZE, IconButton } from '@/components/common/IconButton'
 import { ScalableIcon } from '@/components/common/ScalableIcon'
-import { supportsWorkingDirectories } from '@/components/InputBox/useAgentModeSettingsState'
+import { directoryFolderName, findDirectoryFolder } from '@chatbox/core/application/session'
+import NiceModal, { useModal } from '@ebay/nice-modal-react'
+import { Button, Stack, TextInput } from '@mantine/core'
+import type { SessionFolder } from '@shared/types'
+import { IconFolder } from '@tabler/icons-react'
+import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
+
 import { useIsSmallScreen } from '@/hooks/useScreenChange'
-import platform from '@/platform'
 import { createSessionFolder } from '@/stores/session/folders'
 import * as toastActions from '@/stores/toastActions'
 
@@ -29,7 +27,7 @@ const SessionFolderCreate = NiceModal.create(() => {
   const [name, setName] = useState('')
   const [directory, setDirectory] = useState<string>()
   const [creating, setCreating] = useState(false)
-  const canPickDirectory = supportsWorkingDirectories()
+  const canPickDirectory = false
   const trimmed = name.trim()
   const existing = findDirectoryFolder(folders ?? [], directory)
   const canCreate = !creating && (Boolean(trimmed) || directory !== undefined)
@@ -37,12 +35,6 @@ const SessionFolderCreate = NiceModal.create(() => {
   const close = (result: SessionFolder | null) => {
     modal.resolve(result)
     modal.hide()
-  }
-
-  const pickDirectory = async () => {
-    const result = await platform.openDirectoryDialog?.()
-    if (!result || result.canceled || !result.path) return
-    setDirectory(normalizeWorkingDirectory(result.path))
   }
 
   const create = async () => {
@@ -85,64 +77,6 @@ const SessionFolderCreate = NiceModal.create(() => {
             }
           }}
         />
-        {canPickDirectory && (
-          <Stack gap={6}>
-            <Text size="sm" fw={500}>
-              {t('Source folder')}
-            </Text>
-            {directory === undefined ? (
-              <Stack
-                align="center"
-                gap="xs"
-                py="md"
-                px="sm"
-                className="rounded-md border border-solid border-chatbox-border-primary"
-              >
-                <Text size="sm" c="chatbox-tertiary" ta="center">
-                  {t('Work Mode chats in this folder are added to the project automatically.')}
-                </Text>
-                <Button
-                  variant="light"
-                  color="chatbox-gray"
-                  size="compact-sm"
-                  leftSection={<ScalableIcon icon={IconFolderPlus} size={16} />}
-                  onClick={() => void pickDirectory()}
-                >
-                  {t('Add')}
-                </Button>
-              </Stack>
-            ) : (
-              <Stack gap={4}>
-                <Flex
-                  align="center"
-                  gap="xs"
-                  pl="sm"
-                  pr={4}
-                  py={6}
-                  className="rounded-md border border-solid border-chatbox-border-primary"
-                >
-                  <ScalableIcon icon={IconFolder} size={16} className="shrink-0 text-chatbox-secondary" />
-                  <Text size="sm" className="min-w-0 flex-1 truncate" title={directory}>
-                    {directory}
-                  </Text>
-                  <IconButton
-                    icon={IconX}
-                    size="sm"
-                    iconSize={ICON_SIZE.inline}
-                    color="chatbox-tertiary"
-                    aria-label={t('Remove')}
-                    onClick={() => setDirectory(undefined)}
-                  />
-                </Flex>
-                {existing && (
-                  <Text size="xs" c="chatbox-tertiary">
-                    {t('This folder already belongs to the project “{{name}}”.', { name: existing.name })}
-                  </Text>
-                )}
-              </Stack>
-            )}
-          </Stack>
-        )}
       </Stack>
       <AdaptiveModal.Actions>
         <AdaptiveModal.CloseButton onClick={() => close(null)} />

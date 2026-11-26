@@ -1,6 +1,21 @@
+import { ICON_SIZE, ICON_STROKE_WIDTH, IconButton } from '@/components/common/IconButton'
+import { ScalableIcon } from '@/components/common/ScalableIcon'
+import Page from '@/components/layout/Page'
+import { SettingsDensityProvider, settingsHighlightStore } from '@/components/settings/SettingsLayout'
+import {
+  getSettingsNavGroups,
+  SETTINGS_SEARCH_ENTRIES,
+  settingsNavKeyForSection,
+  useSettingsNavMeta,
+  type SettingsNavItem,
+  type SettingsSearchEntry,
+} from '@/components/settings/settingsNav'
+import { useProviders } from '@/hooks/useProviders'
+import { useIsSmallScreen } from '@/hooks/useScreenChange'
+import { useSettingsStore } from '@/stores/settingsStore'
 import { Box, Flex, Text, TextInput, UnstyledButton } from '@mantine/core'
 import { TestId } from '@shared/automation/testids'
-import { IconChevronLeft, IconChevronRight, IconSearch, IconSparkles, IconX } from '@tabler/icons-react'
+import { IconChevronLeft, IconChevronRight, IconSearch, IconX } from '@tabler/icons-react'
 import {
   createFileRoute,
   Link,
@@ -14,21 +29,6 @@ import clsx from 'clsx'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Toaster } from 'sonner'
-import { ICON_SIZE, ICON_STROKE_WIDTH, IconButton } from '@/components/common/IconButton'
-import { ScalableIcon } from '@/components/common/ScalableIcon'
-import Page from '@/components/layout/Page'
-import { SettingsDensityProvider, settingsHighlightStore } from '@/components/settings/SettingsLayout'
-import {
-  getSettingsNavGroups,
-  SETTINGS_SEARCH_ENTRIES,
-  type SettingsNavItem,
-  type SettingsSearchEntry,
-  settingsNavKeyForSection,
-  useSettingsNavMeta,
-} from '@/components/settings/settingsNav'
-import { useProviders } from '@/hooks/useProviders'
-import { useIsSmallScreen } from '@/hooks/useScreenChange'
-import { useSettingsStore } from '@/stores/settingsStore'
 
 export const Route = createFileRoute('/settings')({
   component: RouteComponent,
@@ -272,32 +272,6 @@ export function SettingsRoot() {
             </div>
           ) : (
             <>
-              <Link to="/settings/chatbox-ai" className="block no-underline">
-                <Flex
-                  align="center"
-                  gap="sm"
-                  className="rounded-xl bg-chatbox-background-raised px-3.5 py-3 text-chatbox-tint-primary"
-                >
-                  <Flex
-                    align="center"
-                    justify="center"
-                    className="size-10 shrink-0 rounded-full bg-chatbox-background-brand-secondary text-chatbox-tint-brand"
-                  >
-                    <ScalableIcon icon={IconSparkles} size={22} strokeWidth={ICON_STROKE_WIDTH} />
-                  </Flex>
-                  <Flex direction="column" flex={1} miw={0}>
-                    <Text fz={16} fw={600} lh="22px">
-                      Chatbox AI
-                    </Text>
-                    <Text fz={13} lh="18px" c={isChatboxAIActivated ? 'chatbox-success' : 'chatbox-tertiary'} truncate>
-                      {isChatboxAIActivated
-                        ? [t('Activated'), licensePlanName].filter(Boolean).join(' · ')
-                        : t('Not activated')}
-                    </Text>
-                  </Flex>
-                  <ScalableIcon icon={IconChevronRight} size={20} className="text-chatbox-tint-tertiary" />
-                </Flex>
-              </Link>
               {groups
                 .filter((group) => group.items.some((item) => item.key !== 'chatbox-ai'))
                 .map((group) => (

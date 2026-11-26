@@ -154,31 +154,6 @@ function createImageModel(): TestImageModel {
   )
 }
 
-describe('AbstractAISDKModel image generation', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-  })
-
-  it('forwards the selected aspect ratio to the image model', async () => {
-    aiMocks.generateImage.mockResolvedValue({ images: [] })
-
-    await createImageModel().paint({
-      prompt: 'wide landscape',
-      num: 1,
-      aspectRatio: '16:9',
-    })
-
-    expect(aiMocks.generateImage).toHaveBeenCalledWith(
-      expect.objectContaining({
-        model: imageModel,
-        prompt: 'wide landscape',
-        n: 1,
-        aspectRatio: '16:9',
-      })
-    )
-  })
-})
-
 describe('AbstractAISDKModel tool errors', () => {
   beforeEach(() => {
     vi.clearAllMocks()

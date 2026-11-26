@@ -38,8 +38,10 @@ export function createCustomProviderModel(
           temperature: settings.temperature,
           topP: settings.topP,
           maxOutputTokens: settings.maxTokens,
-          stream: settings.stream,
+          stream: settings.stream !== false && providerSetting.geminiStreaming !== false,
           useProxy: providerSetting.useProxy,
+          geminiAuthMode: providerSetting.geminiAuthMode,
+          geminiIncludeModel: providerSetting.geminiIncludeModel,
         },
         dependencies
       )

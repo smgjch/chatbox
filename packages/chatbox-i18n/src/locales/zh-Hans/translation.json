@@ -2093,5 +2093,22 @@
   "This request will consume {{count}} image quota.": "本次将消耗 {{count}} 张图片额度。",
   "This request will use {{quota}} image quota first, then charge {{images}} × {{points}} points/image = {{total}} points. Approving confirms this charge.": "本次将先消耗 {{quota}} 张图片额度，其余 {{images}} 张按 {{points}} 点/张计为 {{total}} 点。批准即表示同意本次扣除。",
   "This request will use {{quota}} image quota first, then charge {{images}} × {{points}} points/image = {{total}} points. Already allowed to use compute points.": "本次将先消耗 {{quota}} 张图片额度，其余 {{images}} 张按 {{points}} 点/张计为 {{total}} 点。已允许使用计算点数。",
-  "This request will use compute points: {{images}} × {{points}} points/image = {{total}} points. Already allowed to use compute points.": "本次请求将消耗计算点数：{{images}} 张 × {{points}} 点/张 = {{total}} 点。已允许使用计算点数。"
+  "This request will use compute points: {{images}} × {{points}} points/image = {{total}} points. Already allowed to use compute points.": "本次请求将消耗计算点数：{{images}} 张 × {{points}} 点/张 = {{total}} 点。已允许使用计算点数。",
+  "Use AGIHub Gemini preset": "使用 AGIHub Gemini 预设",
+  "Gemini authentication": "Gemini 鉴权方式",
+  "Include model in request body": "在请求体中包含 model",
+  "Required by some Gemini gateways such as AGIHub.": "适用于 AGIHub 等要求请求体包含模型名的网关。",
+  "Gemini streaming": "Gemini 流式响应",
+  "Disable for gateways that only support generateContent.": "仅支持 generateContent 的网关请关闭此项。",
+  "Gemini thinking mode": "Gemini 推理参数类型",
+  "Use thinkingLevel for Gemini 3 and newer, or thinkingBudget for Gemini 2.5. Custom model names are supported.": "Gemini 3 及更新模型使用 thinkingLevel，Gemini 2.5 使用 thinkingBudget。支持自定义模型别名。",
+  "Automatic detection": "自动识别",
+  "This image session is read-only.": "此历史图片会话仅供查看。",
+  "Save settings and conversations to a backup file.": "将设置和聊天记录保存为备份文件。",
+  "Conversations and resources with matching IDs will be replaced. Included settings will replace local values.": "ID 相同的会话和资源将被替换，备份中的设置将替换本地设置。",
+  "Chatbox Lite": "Chatbox Lite",
+  "Chat-only edition. Your conversations and provider credentials stay on this device.": "聊天精简版。聊天记录和供应商凭据保存在本机。",
+  "Files are parsed locally and included in the chat context.": "文件在本地解析，并作为聊天上下文发送。",
+  "Chat-only edition. Use your own model providers; conversations stay on your device.": "聊天精简版。使用自定义模型供应商，聊天记录保存在本机。",
+  "Could not parse this file locally. Try a text-based file or paste its contents.": "无法在本地解析此文件，请改用包含文本的文件或粘贴其内容。"
 }

@@ -1,18 +1,13 @@
+import platform from '@/platform'
 import { isUsingOAuth, mergeSharedOAuthProviderSettings } from '@shared/oauth'
 import { ModelProviderEnum } from '@shared/types'
 import { getDefaultStore } from 'jotai'
-import platform from '@/platform'
 import * as atoms from './atoms'
 import { isChatboxAIProPlan } from './licensePlan'
 import { settingsStore } from './settingsStore'
 
 export function needEditSetting() {
   const settings = settingsStore.getState()
-
-  // 激活了chatbox ai
-  if (settings.licenseKey) {
-    return false
-  }
 
   if (settings.providers && Object.keys(settings.providers).length > 0) {
     const providers = settings.providers

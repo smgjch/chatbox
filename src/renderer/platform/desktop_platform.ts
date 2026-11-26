@@ -1,33 +1,26 @@
 import type { FileEditRequest, FileEditResult } from '@shared/file-edits'
 /** biome-ignore-all lint/suspicious/noExplicitAny: <any> */
 
-import type { SessionRowStorePort } from '@chatbox/core/ports'
-import type { AnalyticsEventParams } from '@shared/analytics'
-import type { ElectronIPC } from '@shared/electron-types'
-import type {
-  SandboxExecLanguage,
-  SandboxExecResult,
-  SandboxOperationResult,
-  SandboxReadResult,
-} from '@shared/sandbox-provider'
-import type { Config, Settings, ShortcutSetting } from '@shared/types'
-import type { WorkspaceInstructionsResult } from '@shared/types/workspace-instructions'
-import { cache } from '@shared/utils/cache'
-import localforage from 'localforage'
-import { v4 as uuidv4 } from 'uuid'
 import { parseLocale } from '@/i18n/parser'
 import { getLogger } from '@/lib/utils'
 import { type ImageGenerationStorage, IndexedDBImageGenerationStorage } from '@/storage/ImageGenerationStorage'
 import { IndexedDBSessionMetaStorage, type SessionMetaStorage } from '@/storage/SessionMetaStorage'
 import { IndexedDBSessionRowStore } from '@/storage/SessionRowStorage'
 import { rememberFileNativePath } from '@/utils/file-native-path'
+import type { SessionRowStorePort } from '@chatbox/core/ports'
+import type { AnalyticsEventParams } from '@shared/analytics'
+import type { ElectronIPC } from '@shared/electron-types'
+import type { Config, Settings, ShortcutSetting } from '@shared/types'
+import type { WorkspaceInstructionsResult } from '@shared/types/workspace-instructions'
+import { cache } from '@shared/utils/cache'
+import localforage from 'localforage'
+import { v4 as uuidv4 } from 'uuid'
 import { getOS } from '../packages/navigator'
 import { DesktopBuiltInBrowser } from './desktop-built-in-browser'
-import type { Exporter, Platform, PlatformType } from './interfaces'
-import DesktopKnowledgeBaseController from './knowledge-base/desktop-controller'
-import DesktopSessionAttachmentRagController from './session-attachment-rag/desktop-controller'
-import DesktopExporter from './desktop_exporter'
 import { desktopResourceFiles } from './desktop-resource-files'
+import DesktopExporter from './desktop_exporter'
+import type { Exporter, Platform, PlatformType } from './interfaces'
+
 import { parseTextFileLocally } from './web_platform_utils'
 
 const log = getLogger('desktop-platform')
@@ -42,8 +35,6 @@ export default class DesktopPlatform implements Platform {
   public resourceFiles: ReturnType<typeof desktopResourceFiles>
   public builtInBrowser?: DesktopBuiltInBrowser
 
-  private _kbController?: DesktopKnowledgeBaseController
-  private _sessionAttachmentRagController?: DesktopSessionAttachmentRagController
   private _imageGenerationStorage: ImageGenerationStorage | null = null
   private _sessionMetaStorage: SessionMetaStorage | null = null
   private _sessionRowStore: SessionRowStorePort | null = null
@@ -53,7 +44,6 @@ export default class DesktopPlatform implements Platform {
     this.ipc = ipc
     this.exporter = new DesktopExporter(ipc)
     this.resourceFiles = desktopResourceFiles(ipc)
-    this.builtInBrowser = new DesktopBuiltInBrowser(ipc)
   }
 
   public getStorageType(): string {
@@ -369,20 +359,6 @@ export default class DesktopPlatform implements Platform {
     return this.ipc.invoke('switch-theme', theme)
   }
 
-  public getKnowledgeBaseController() {
-    if (!this._kbController) {
-      this._kbController = new DesktopKnowledgeBaseController(this.ipc)
-    }
-    return this._kbController
-  }
-
-  public getSessionAttachmentRagController() {
-    if (!this._sessionAttachmentRagController) {
-      this._sessionAttachmentRagController = new DesktopSessionAttachmentRagController(this.ipc)
-    }
-    return this._sessionAttachmentRagController
-  }
-
   public getImageGenerationStorage(): ImageGenerationStorage {
     if (!this._imageGenerationStorage) {
       this._imageGenerationStorage = new IndexedDBImageGenerationStorage()
@@ -404,148 +380,8 @@ export default class DesktopPlatform implements Platform {
     return this._sessionRowStore
   }
 
-  public async sandboxExecCode(params: {
-    code: string
-    language: SandboxExecLanguage
-    timeout?: number
-    sessionId?: string
-    toolCallId?: string
-  }): Promise<SandboxExecResult> {
-    return this.ipc.invoke('sandbox:exec-code', params)
-  }
-
-  public async sandboxRunCommand(params: {
-    command: string
-    shell: 'bash' | 'powershell'
-    workdir?: string
-    timeout?: number
-    sessionId?: string
-    toolCallId: string
-  }): Promise<import('@shared/sandbox-provider').SandboxRunCommandResult> {
-    return this.ipc.invoke('sandbox:run-command', params)
-  }
-
-  public async sandboxRead(params: {
-    filePath: string
-    offset?: number
-    limit?: number
-    sessionId?: string
-  }): Promise<SandboxReadResult> {
-    return this.ipc.invoke('sandbox:read', params)
-  }
-
-  public async sandboxWrite(params: { filePath: string; content: string; sessionId?: string }) {
-    return this.ipc.invoke('sandbox:write', params)
-  }
-
-  public async sandboxEdit(params: FileEditRequest & { sessionId?: string }): Promise<FileEditResult> {
-    return this.ipc.invoke('sandbox:edit', params)
-  }
-
-  public async sandboxLs(params: { dirPath: string; sessionId?: string }): Promise<SandboxOperationResult> {
-    return this.ipc.invoke('sandbox:ls', params)
-  }
-
-  public async sandboxSearch(params: {
-    pattern: string
-    path: string
-    regex?: boolean
-    include?: string
-    sessionId?: string
-  }): Promise<SandboxOperationResult> {
-    return this.ipc.invoke('sandbox:search', {
-      ...params,
-      dirPath: params.path,
-    })
-  }
-
-  public async sandboxFind(params: {
-    dirPath: string
-    pattern?: string
-    sessionId?: string
-  }): Promise<SandboxOperationResult> {
-    return this.ipc.invoke('sandbox:find', params)
-  }
-
-  public async sandboxKill(params?: { sessionId?: string; toolCallId?: string }) {
-    return this.ipc.invoke('sandbox:kill', params)
-  }
-
-  public async sandboxReset(params?: { sessionId?: string }) {
-    return this.ipc.invoke('sandbox:reset', params)
-  }
-
-  public async sandboxStatus(params?: { sessionId?: string }) {
-    return this.ipc.invoke('sandbox:status', params)
-  }
-
-  public async sandboxResolveWorkingDir(params: { sessionId: string }) {
-    return this.ipc.invoke('sandbox:resolve-working-dir', params)
-  }
-
-  public async sandboxCheckAvailability() {
-    return this.ipc.invoke('sandbox:check-availability')
-  }
-
-  public async sandboxInitTemp(params: { sessionId: string; workingDirectories?: string[] }) {
-    return this.ipc.invoke('sandbox:init-temp', params)
-  }
-
-  public async sandboxCopyFile(params: { content: string; targetFilename: string; sessionId?: string }) {
-    return this.ipc.invoke('sandbox:copy-file', params)
-  }
-
-  public async sandboxCopyBlob(params: { blobKey: string; targetFilename: string; sessionId?: string }) {
-    return this.ipc.invoke('sandbox:copy-blob', params)
-  }
-
-  public async sandboxSeedBlobs(params: {
-    items: Array<{ blobKey: string; targetFilename: string }>
-    sessionId?: string
-  }) {
-    return this.ipc.invoke('sandbox:seed-blobs', params)
-  }
-
-  public async sandboxExportFile(params: { sandboxPath: string; suggestedName?: string }) {
-    return this.ipc.invoke('sandbox:export-file', params)
-  }
-
-  public async sandboxPersistArtifact(params: { sandboxPath: string; sessionId: string; displayName?: string }) {
-    return this.ipc.invoke('sandbox:persist-artifact', params)
-  }
-
-  public async sandboxHasArtifacts(params: { sessionId: string }) {
-    return this.ipc.invoke('sandbox:has-artifacts', params)
-  }
-
-  public async sandboxRemoveArtifacts(params: { sessionId: string }) {
-    return this.ipc.invoke('sandbox:remove-artifacts', params)
-  }
-
-  public async sandboxReadFileBase64(params: {
-    filePath: string
-    maxBytes?: number
-  }): Promise<{ success: boolean; base64?: string; error?: string }> {
-    return this.ipc.invoke('sandbox:read-file-base64', params)
-  }
-
-  public async sandboxReadFileBytes(params: {
-    filePath: string
-    maxBytes?: number
-  }): Promise<{ success: boolean; bytes?: ArrayBuffer; error?: string }> {
-    return this.ipc.invoke('sandbox:read-file-bytes', params)
-  }
-
-  public async sandboxCreateHtmlPreview(params: { filePath: string }) {
-    return this.ipc.invoke('sandbox:create-html-preview', params)
-  }
-
   public async openDirectoryDialog() {
     return this.ipc.invoke('dialog:openDirectory')
-  }
-
-  public async scanLocalAgentMemories() {
-    return this.ipc.invoke('agent-persona:scan-local-memories')
   }
 
   public minimize() {

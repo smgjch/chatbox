@@ -1,7 +1,24 @@
+import { currentBlobStorage } from '@/adapters/CurrentBlobStorage'
+import { AssistantAvatar } from '@/components/common/Avatar'
+import { ICON_STROKE_WIDTH } from '@/components/common/IconButton'
+import { ScalableIcon } from '@/components/common/ScalableIcon'
+import { handleImageInputAndSave, ImageInStorage } from '@/components/Image'
+import {
+  ContextLimitSelectRow,
+  describeSamplingValue,
+  NO_CONTEXT_LIMIT,
+  SamplingParamControl,
+} from '@/components/settings/ParamControl'
+import {
+  InheritState,
+  SettingRow,
+  SettingsSection,
+  SettingSwitchRow,
+  useSettingsDensity,
+} from '@/components/settings/SettingsLayout'
 import { getSessionAssistantName } from '@chatbox/core/session/message-header'
 import { isActionAvailableInMode, type SessionMode } from '@chatbox/core/session/mode-policy'
 import {
-  Anchor,
   Box,
   Button,
   CloseButton,
@@ -22,28 +39,10 @@ import { IconArrowBackUp, IconCamera, IconTrash } from '@tabler/icons-react'
 import { isEqual, omit } from 'lodash'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { currentBlobStorage } from '@/adapters/CurrentBlobStorage'
-import { AssistantAvatar } from '@/components/common/Avatar'
-import { ICON_STROKE_WIDTH } from '@/components/common/IconButton'
-import { ScalableIcon } from '@/components/common/ScalableIcon'
-import { handleImageInputAndSave, ImageInStorage } from '@/components/Image'
-import {
-  ContextLimitSelectRow,
-  describeSamplingValue,
-  NO_CONTEXT_LIMIT,
-  SamplingParamControl,
-} from '@/components/settings/ParamControl'
-import {
-  InheritState,
-  SettingRow,
-  SettingSwitchRow,
-  SettingsSection,
-  useSettingsDensity,
-} from '@/components/settings/SettingsLayout'
-import { useMyCopilots } from '@/hooks/useCopilots'
+
+import { rendererApplication } from '@/app/renderer-application'
 import { useFieldDraft } from '@/hooks/useFieldDraft'
 import { useProviders } from '@/hooks/useProviders'
-import { navigateToSettings } from '@/modals/settings-navigation'
 import { StorageKeyGenerator } from '@/storage/StoreStorage'
 import {
   countSessionDifferences,
@@ -54,9 +53,8 @@ import {
 } from '@/stores/session/session-settings-inheritance'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { add as addToast } from '@/stores/toastActions'
-import type { SessionEdit } from './session-edit'
 import { getMessageText } from '@shared/utils/message'
-import { rendererApplication } from '@/app/renderer-application'
+import type { SessionEdit } from './session-edit'
 
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024
 const TEXT_COMMIT_DELAY_MS = 600
@@ -182,10 +180,10 @@ export function SessionSettingsContent({
 
   const name = useCommittedText(session.name, (value) => void save({ name: value }), false)
   const assistantName = useCommittedText(session.assistantName ?? '', (value) => void save({ assistantName: value }))
-  const { copilots } = useMyCopilots()
+
   const customProviders = useSettingsStore((s) => s.customProviders)
   const defaultAssistantName: string =
-    getSessionAssistantName({ copilotId: session.copilotId }, copilots) ??
+    getSessionAssistantName({ copilotId: session.copilotId }, []) ??
     (settings?.provider ? getProviderDisplayName(settings.provider, customProviders) : undefined) ??
     String(t('Assistant'))
   const { read: headerRead } = rendererApplication.sessionHooks.useSessionHeader(
@@ -318,31 +316,23 @@ export function SessionSettingsContent({
         )}
       </SettingsSection>
 
-      {isChat &&
-        (showSystemPrompt ? (
-          <SettingsSection title={t('Instruction')} bare>
-            <Textarea
-              data-testid={TestId.settings.sessionPrompt}
-              aria-label={t('Instruction (System Prompt)') ?? undefined}
-              placeholder={t('Copilot Prompt Demo') || ''}
-              autosize
-              minRows={2}
-              maxRows={10}
-              disabled={promptRead.isLoading || promptRead.isError}
-              value={systemPrompt.value}
-              onChange={(e) => systemPrompt.onChange(e.currentTarget.value)}
-              onBlur={systemPrompt.onBlur}
-              styles={{ input: { touchAction: 'manipulation' } }}
-            />
-          </SettingsSection>
-        ) : (
-          <Text fz={12} c="chatbox-tertiary" lh="18px">
-            {t('Work Mode uses the agent persona instead of a conversation prompt.')}{' '}
-            <Anchor fz={12} component="button" onClick={() => navigateToSettings('/agent')}>
-              {t('Edit persona')}
-            </Anchor>
-          </Text>
-        ))}
+      {isChat && (
+        <SettingsSection title={t('Instruction')} bare>
+          <Textarea
+            data-testid={TestId.settings.sessionPrompt}
+            aria-label={t('Instruction (System Prompt)') ?? undefined}
+            placeholder={t('Copilot Prompt Demo') || ''}
+            autosize
+            minRows={2}
+            maxRows={10}
+            disabled={promptRead.isLoading || promptRead.isError}
+            value={systemPrompt.value}
+            onChange={(e) => systemPrompt.onChange(e.currentTarget.value)}
+            onBlur={systemPrompt.onBlur}
+            styles={{ input: { touchAction: 'manipulation' } }}
+          />
+        </SettingsSection>
+      )}
 
       {isChat && (
         <SettingsSection

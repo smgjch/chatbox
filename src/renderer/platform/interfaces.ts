@@ -2,7 +2,9 @@ import type { FileEditRequest, FileEditResult } from '@shared/file-edits'
 /** biome-ignore-all lint/suspicious/noExplicitAny: <any> */
 
 import type { SessionRowStorePort } from '@chatbox/core/ports'
-import type { LocalMemoryScanResult } from '@shared/agent-persona/memory-import'
+
+import type { ImageGenerationStorage } from '@/storage/ImageGenerationStorage'
+import type { SessionMetaStorage } from '@/storage/SessionMetaStorage'
 import type { AnalyticsEventParams } from '@shared/analytics'
 import type {
   BuiltInBrowserRequest,
@@ -19,10 +21,6 @@ import type {
 } from '@shared/sandbox-provider'
 import type { Config, Language, Settings, ShortcutSetting } from '@shared/types'
 import type { WorkspaceInstructionsResult } from '@shared/types/workspace-instructions'
-import type { ImageGenerationStorage } from '@/storage/ImageGenerationStorage'
-import type { SessionMetaStorage } from '@/storage/SessionMetaStorage'
-import type { KnowledgeBaseController } from './knowledge-base/interface'
-import type { SessionAttachmentRagController } from './session-attachment-rag/interface'
 
 export type PlatformType = SharedPlatformType
 
@@ -184,14 +182,11 @@ export interface Platform extends Storage {
   // Cancel MinerU parsing task (Desktop only)
   cancelMineruParse?(filePath: string): Promise<{ success: boolean; error?: string }>
 
-  // parseUrl(url: string): Promise<{ key: string, title: string }>
+  parseUrl?(url: string): Promise<{ key: string; title: string }>
 
   isFullscreen(): Promise<boolean>
   setFullscreen(enabled: boolean): Promise<void>
   installUpdate(): Promise<void>
-
-  getKnowledgeBaseController(): KnowledgeBaseController
-  getSessionAttachmentRagController(): SessionAttachmentRagController
 
   getImageGenerationStorage(): ImageGenerationStorage
 
@@ -298,7 +293,6 @@ export interface Platform extends Storage {
   // Directory dialog (Desktop only)
   openDirectoryDialog?(): Promise<{ canceled: boolean; path?: string }>
   /** Scan local Claude/Codex memory files for import candidates (desktop only). */
-  scanLocalAgentMemories?(): Promise<LocalMemoryScanResult>
 
   // window controls
   minimize(): Promise<void>

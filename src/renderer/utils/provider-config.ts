@@ -8,6 +8,8 @@ export const CUSTOM_PROVIDER_ID_CONFLICT = 'builtin-provider-id-conflict'
 const modelInfoSchema = z.object({
   modelId: z.string(),
   nickname: z.string().optional(),
+  apiStyle: z.enum(['openai', 'anthropic', 'google']).optional(),
+  thinkingMode: z.enum(['auto', 'level', 'budget', 'none']).optional(),
   type: z.enum(['chat', 'embedding', 'rerank', 'image']).optional().default('chat'),
   capabilities: z.array(z.enum(['vision', 'reasoning', 'tool_use'])).optional(),
   contextWindow: z.number().optional(),
@@ -26,7 +28,7 @@ const CustomProviderConfigSchema = z.object({
   isCustom: z.literal(true).catch(true),
   id: z.string(),
   name: z.string(),
-  type: z.enum(['openai', 'openai-responses', 'anthropic']),
+  type: z.enum(['openai', 'openai-responses', 'anthropic', 'gemini']),
   iconUrl: z.string().optional(),
   urls: z
     .object({
@@ -39,6 +41,10 @@ const CustomProviderConfigSchema = z.object({
   settings: z.object({
     apiHost: z.string(),
     apiPath: z.string().optional(),
+    geminiAuthMode: z.enum(['google-api-key', 'bearer']).optional(),
+    geminiIncludeModel: z.boolean().optional(),
+    geminiStreaming: z.boolean().optional(),
+    useProxy: z.boolean().optional(),
     apiKey: z.string().optional(),
     models: z.array(modelInfoSchema).optional(),
   }),
@@ -63,7 +69,9 @@ function parseProviderConfig(json: unknown): ProviderInfo | (ProviderSettings & 
         ? ModelProviderType.OpenAI
         : parsedCustom.type === 'openai-responses'
           ? ModelProviderType.OpenAIResponses
-          : ModelProviderType.Claude
+          : parsedCustom.type === 'gemini'
+            ? ModelProviderType.Gemini
+            : ModelProviderType.Claude
 
     const providerInfo: ProviderInfo = {
       id: parsedCustom.id,
@@ -72,6 +80,8 @@ function parseProviderConfig(json: unknown): ProviderInfo | (ProviderSettings & 
       urls: parsedCustom.urls,
       iconUrl: parsedCustom.iconUrl,
       isCustom: true,
+
+      ...parsedCustom.settings,
 
       apiHost: parsedCustom.settings.apiHost,
       apiPath: parsedCustom.settings.apiPath,
@@ -100,7 +110,9 @@ function parseProviderConfig(json: unknown): ProviderInfo | (ProviderSettings & 
       ? ModelProviderType.OpenAI
       : parsedCustom.type === 'openai-responses'
         ? ModelProviderType.OpenAIResponses
-        : ModelProviderType.Claude
+        : parsedCustom.type === 'gemini'
+          ? ModelProviderType.Gemini
+          : ModelProviderType.Claude
 
   return {
     id: parsedCustom.id,
@@ -109,6 +121,7 @@ function parseProviderConfig(json: unknown): ProviderInfo | (ProviderSettings & 
     urls: parsedCustom.urls,
     iconUrl: parsedCustom.iconUrl,
     isCustom: true,
+    ...parsedCustom.settings,
     apiHost: parsedCustom.settings.apiHost,
     apiPath: parsedCustom.settings.apiPath,
     apiKey: parsedCustom.settings.apiKey,

@@ -1,8 +1,5 @@
-import { isPdfFilePath, isTextFilePath } from '@shared/file-extensions'
-import { v4 as uuidv4 } from 'uuid'
 import { parsePdfFileLocally } from '@/packages/pdf-parser'
-import platform from '@/platform'
-import * as remote from '../packages/remote'
+import { isPdfFilePath, isTextFilePath } from '@shared/file-extensions'
 
 export async function parseTextFileLocally(file: File): Promise<{ text: string; isSupported: boolean }> {
   if (!isTextFilePath(file.name)) {
@@ -31,9 +28,6 @@ export async function parseFileLocallyInBrowser(
   }
 }
 
-export async function parseUrlContentFree(url: string) {
-  const result = await remote.parseUserLinkFree({ url })
-  const key = `parseUrl-${uuidv4()}`
-  await platform.setStoreBlob(key, result.text)
-  return { key, title: result.title }
+export async function parseUrlContentFree(_url: string): Promise<{ key: string; title: string }> {
+  throw new Error('URL attachments require the desktop app. You can paste the link into your message.')
 }

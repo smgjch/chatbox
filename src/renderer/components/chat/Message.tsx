@@ -1,3 +1,28 @@
+import { DeepSeekInfo } from './DeepSeekInfo'
+import { getMessagePreviewText } from './message-navigation-utils'
+import { trackJkClickEvent } from '@/analytics/jk'
+import { JK_EVENTS, JK_PAGE_NAMES } from '@/analytics/jk-events'
+import { rendererApplication } from '@/app/renderer-application'
+import Markdown from '@/components/Markdown'
+import StreamingTextFade from '@/components/StreamingTextFade'
+import { AppTooltip as Tooltip1 } from '@/components/ui/tooltip'
+import { useMessageGenerationStop } from '@/hooks/useGenerationStop'
+import { useIsSmallScreen } from '@/hooks/useScreenChange'
+import { formatElapsedTime } from '@/hooks/useThinkingTimer'
+import { GLASS_FILL_CLASS, GLASS_SURFACE_CLASS } from '@/lib/glass-surface'
+import { cn } from '@/lib/utils'
+import { navigateToSettings } from '@/modals/settings-navigation'
+import { getAcceptedImageBackgroundTaskResult } from '@/packages/chatbox-cli/background-task-result'
+import { copyToClipboard } from '@/packages/navigator'
+import { countWord } from '@/packages/word-count'
+import { regenerateInNewFork, retryFromLastToolCallAfterApiError } from '@/stores/session/generation'
+import { modifyMessage, removeMessage } from '@/stores/session/messages'
+import { useSettingsStore } from '@/stores/settingsStore'
+import * as toastActions from '@/stores/toastActions'
+import { uiStore, useUIStore } from '@/stores/uiStore'
+import { prepareTranscriptBranchCreation } from '@/utils/prepare-transcript-branch-creation'
+import { confirmPromptCacheBreakingAction, isPromptCacheBreakConfirmDismissed } from '@/utils/prompt-cache-confirm'
+import { getSessionLockNotice, notifySessionLockBlocked } from '@/utils/session-lock-copy'
 import { isRetryableToolCallStep } from '@chatbox/core/generation'
 import {
   getSessionActionGate,
@@ -41,40 +66,13 @@ import {
   type IconProps,
   IconQuoteFilled,
   IconReload,
-  IconRobot,
   IconTrash,
 } from '@tabler/icons-react'
 import clsx from 'clsx'
 import type React from 'react'
-import { type FC, forwardRef, type MouseEventHandler, memo, useCallback, useMemo, useRef, useState } from 'react'
+import { type FC, forwardRef, memo, type MouseEventHandler, useCallback, useMemo, useRef, useState } from 'react'
 import { Trans, useTranslation } from 'react-i18next'
-import { trackAgentModeSuggestionAction } from '@/analytics/agent-mode'
-import { trackJkClickEvent } from '@/analytics/jk'
-import { JK_EVENTS, JK_PAGE_NAMES } from '@/analytics/jk-events'
-import { rendererApplication } from '@/app/renderer-application'
-import Markdown from '@/components/Markdown'
-import StreamingTextFade from '@/components/StreamingTextFade'
-import { AppTooltip as Tooltip1 } from '@/components/ui/tooltip'
-import { useMessageGenerationStop } from '@/hooks/useGenerationStop'
-import { useIsSmallScreen } from '@/hooks/useScreenChange'
-import { formatElapsedTime } from '@/hooks/useThinkingTimer'
-import { cn } from '@/lib/utils'
-import { navigateToSettings } from '@/modals/settings-navigation'
-import { getAcceptedImageBackgroundTaskResult } from '@/packages/chatbox-cli/background-task-result'
-import { copyToClipboard } from '@/packages/navigator'
-import { countWord } from '@/packages/word-count'
-import { lockSessionAgentMode, setSessionAgentMode } from '@/stores/session/agent-mode'
-import { useSettingsStore } from '@/stores/settingsStore'
-import { uiStore, useUIStore } from '@/stores/uiStore'
-import { prepareTranscriptBranchCreation } from '@/utils/prepare-transcript-branch-creation'
-import { DeepSeekInfo } from './DeepSeekInfo'
 import '../../static/Block.css'
-import { GLASS_FILL_CLASS, GLASS_SURFACE_CLASS } from '@/lib/glass-surface'
-import { generate, regenerateInNewFork, retryFromLastToolCallAfterApiError } from '@/stores/session/generation'
-import { modifyMessage, removeMessage } from '@/stores/session/messages'
-import * as toastActions from '@/stores/toastActions'
-import { confirmPromptCacheBreakingAction, isPromptCacheBreakConfirmDismissed } from '@/utils/prompt-cache-confirm'
-import { getSessionLockNotice, notifySessionLockBlocked } from '@/utils/session-lock-copy'
 import ActionMenu, { type ActionMenuItemProps } from '../ActionMenu'
 import { AssistantAvatar, SystemAvatar, UserAvatar } from '../common/Avatar'
 import { CompressionModal } from '../common/CompressionModal'
@@ -83,9 +81,6 @@ import { ScalableIcon } from '../common/ScalableIcon'
 import Loading from '../icons/Loading'
 import { ReasoningContentUI, StepTimelineUI } from '../message-parts/StepTimelineUI'
 import { MessageArtifactsUI, ToolCallPartUI } from '../message-parts/ToolCallPartUI'
-import { MessageAttachmentGrid } from './MessageAttachmentGrid'
-import MessageErrTips from './MessageErrTips'
-import MessageStatuses, { PreparingToolCallStatus } from './MessageLoading'
 import { getMessageActionVisibilityClass, type MessageButtonGroup } from './message-action-state'
 import { formatMessageTimestamp, getMessageHeader, getMessageHeaderTitle } from './message-header'
 import {
@@ -94,10 +89,12 @@ import {
   isErrorOnlyMessage,
   isUserMessageOnRight,
 } from './message-layout'
-import { getMessagePreviewText } from './message-navigation-utils'
 import { getMessageRoleClass } from './message-role-class'
 import { createCollapsedDisplayGroups, createMessageTimelineLayout } from './message-timeline'
 import { getMessageTokenDisplay } from './message-token-display'
+import { MessageAttachmentGrid } from './MessageAttachmentGrid'
+import MessageErrTips from './MessageErrTips'
+import MessageStatuses, { PreparingToolCallStatus } from './MessageLoading'
 import { PictureGallery } from './PictureGallery'
 import { useProcessTimelineCollapse } from './useProcessTimelineCollapse'
 import { useReplyBelowAction } from './useReplyBelowAction'
@@ -112,18 +109,6 @@ const COLLAPSED_PREVIEW_MAX_LENGTH = 600
 
 // Reset an assistant message back to a clean generating state, reusing the same
 // message slot (e.g. when acting on an agent-mode suggestion callout).
-function resetMessageForAgentModeResponse(msg: Message): Message {
-  return {
-    ...msg,
-    generating: true,
-    contentParts: [],
-    errorCode: undefined,
-    error: undefined,
-    errorExtra: undefined,
-    status: [],
-    finishReason: undefined,
-  }
-}
 
 interface Props {
   id?: string
@@ -319,63 +304,6 @@ const _Message: FC<Props> = (props) => {
 
   // Tracking is best-effort and must never block or break the accept/decline
   // action, so this fetches the session on its own and swallows failures.
-  const trackAgentModeSuggestionActionAsync = useCallback(
-    (action: 'accept' | 'decline') => {
-      void Promise.all([
-        rendererApplication.sessions.getSessionHeader(sessionId),
-        rendererApplication.sessions.readPreviousUserMessage(sessionId, msg.id),
-      ])
-        .then(([read, previousUser]) => {
-          const session = read?.header
-          const fileCount = previousUser?.files?.length ?? 0
-          trackAgentModeSuggestionAction({
-            action,
-            hasFiles: fileCount > 0,
-            fileCount,
-            context: {
-              sessionId,
-              mode: action === 'accept' ? 'work_mode' : 'chat_mode',
-              provider: session?.settings?.provider,
-              model: session?.settings?.modelId,
-            },
-          })
-        })
-        .catch(() => {})
-    },
-    [msg.id, sessionId]
-  )
-
-  const agentModeSuggestionHandledRef = useRef(false)
-
-  const handleStartAgentModeResponse = useCallback(async () => {
-    if (agentModeSuggestionHandledRef.current) return
-    agentModeSuggestionHandledRef.current = true
-    trackAgentModeSuggestionActionAsync('accept')
-    try {
-      await lockSessionAgentMode(sessionId, 'message_sent')
-      const nextMsg = resetMessageForAgentModeResponse(msg)
-      await modifyMessage(sessionId, nextMsg, true)
-      await generate(sessionId, nextMsg, { operationType: 'send_message', agentModeEntrySource: 'suggestion_accept' })
-    } catch (error) {
-      agentModeSuggestionHandledRef.current = false
-      throw error
-    }
-  }, [trackAgentModeSuggestionActionAsync, msg, sessionId])
-
-  const handleContinueNormalResponse = useCallback(async () => {
-    if (agentModeSuggestionHandledRef.current) return
-    agentModeSuggestionHandledRef.current = true
-    trackAgentModeSuggestionActionAsync('decline')
-    try {
-      await setSessionAgentMode(sessionId, 'off', { source: 'system' })
-      const nextMsg = resetMessageForAgentModeResponse(msg)
-      await modifyMessage(sessionId, nextMsg, true)
-      await generate(sessionId, nextMsg, { operationType: 'send_message', skipAgentModeSuggestion: true })
-    } catch (error) {
-      agentModeSuggestionHandledRef.current = false
-      throw error
-    }
-  }, [trackAgentModeSuggestionActionAsync, msg, sessionId])
 
   const lastStepForRetry = useMemo(() => {
     for (let index = msg.contentParts.length - 1; index >= 0; index -= 1) {
@@ -905,6 +833,7 @@ const _Message: FC<Props> = (props) => {
             <ReasoningContentUI message={msg} onCopyReasoningContent={onCopyReasoningContent} />
           )}
           {getMessageText(msg, true, true).trim() === '' && <p></p>}
+
           {displayGroups.length > 0 &&
             (needCollapse && isCollapsed ? (
               <div className="flex min-w-0 items-center gap-2 py-2">
@@ -959,53 +888,6 @@ const _Message: FC<Props> = (props) => {
                         <Text size="xs" c="chatbox-brand">
                           {item.text}
                         </Text>
-                      </Flex>
-                    </Flex>
-                  ) : item.type === 'agent-mode-suggestion' ? (
-                    <Flex key={`agent-mode-suggestion-${msg.id}-${index}`} className="mb-2 w-full">
-                      <Flex
-                        className={`w-full max-w-[760px] bg-chatbox-background-secondary border border-solid border-chatbox-border-primary rounded-lg shadow-sm overflow-hidden ${GLASS_FILL_CLASS}`}
-                        align="stretch"
-                      >
-                        <div className="w-1 shrink-0 bg-chatbox-tint-brand" />
-                        <Flex align="center" gap="sm" px="sm" py="sm" className="min-w-0 flex-1" wrap="wrap">
-                          <Flex align="center" gap="sm" className="min-w-0 max-w-full flex-1 basis-[240px]">
-                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-chatbox-background-brand-secondary text-chatbox-tint-brand">
-                              <ScalableIcon icon={IconRobot} size={18} />
-                            </div>
-                            <Stack gap={2} className="min-w-0 flex-1">
-                              <Text size="sm" fw={600} c="chatbox-primary">
-                                {t('Work Mode suggested')}
-                              </Text>
-                              {item.reason && (
-                                <Text size="xs" c="chatbox-secondary" className="break-words [overflow-wrap:anywhere]">
-                                  {item.reason}
-                                </Text>
-                              )}
-                            </Stack>
-                          </Flex>
-                          <Flex gap="xs" className="max-w-full" wrap="wrap">
-                            <Button
-                              size="xs"
-                              variant="subtle"
-                              color="gray"
-                              className="max-w-full shrink-0"
-                              onClick={handleContinueNormalResponse}
-                            >
-                              {t('Continue in Chat Mode')}
-                            </Button>
-                            <Button
-                              size="xs"
-                              variant="light"
-                              color="chatbox-brand"
-                              className="max-w-full shrink-0"
-                              leftSection={<IconRobot size={14} />}
-                              onClick={handleStartAgentModeResponse}
-                            >
-                              {t('Use Work Mode')}
-                            </Button>
-                          </Flex>
-                        </Flex>
                       </Flex>
                     </Flex>
                   ) : item.type === 'image' ? (

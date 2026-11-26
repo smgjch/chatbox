@@ -1,9 +1,8 @@
-import { Button, Modal, Progress, Stack, Text } from '@mantine/core'
-import { useTranslation } from 'react-i18next'
-import { buildChatboxUrl } from '@/packages/remote'
 import platform from '@/platform'
 import { useDbSchemaGuardStore } from '@/storage/db-schema-guard'
 import { installUpdate, useUpdateStore } from '@/stores/updateStore'
+import { Button, Modal, Progress, Stack, Text } from '@mantine/core'
+import { useTranslation } from 'react-i18next'
 
 /**
  * Blocking guidance for the two IndexedDB schema-mismatch situations
@@ -94,10 +93,7 @@ function UpdateAction({ language }: { language: string }) {
     return (
       <Stack gap="xs">
         <Button onClick={() => window.location.reload()}>{t('Reload')}</Button>
-        <Button
-          variant="default"
-          onClick={() => platform.openLink(buildChatboxUrl(`/redirect_app/check_update/${language}`))}
-        >
+        <Button variant="default" onClick={() => platform.openLink('https://github.com/smgjch/chatbox/releases')}>
           {t('Check Update')}
         </Button>
       </Stack>

@@ -1,9 +1,8 @@
+import { rendererApplication } from '@/app/renderer-application'
 import { ForkService } from '@chatbox/core/application/session'
 import type { Message } from '@shared/types'
 import { v4 as uuidv4 } from 'uuid'
-import { rendererApplication } from '@/app/renderer-application'
 import { guardSessionAction } from './action-guard'
-import { cleanupSessionAttachments } from './attachment-cleanup'
 
 const forkIdentity = {
   createId: uuidv4,
@@ -79,7 +78,6 @@ export async function deleteFork(sessionId: string, forkMessageId: string) {
   await forkService.delete(sessionId, forkMessageId, (result) => {
     for (const messageId of result.cancelMessageIds)
       rendererApplication.generationRuntime.discard(sessionId, messageId, 'fork-deleted')
-    if (result.applied) void cleanupSessionAttachments(sessionId)
   })
 }
 

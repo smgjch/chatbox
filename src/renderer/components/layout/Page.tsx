@@ -1,15 +1,14 @@
+import useNeedRoomForWinControls from '@/hooks/useNeedRoomForWinControls'
+import { useIsSmallScreen } from '@/hooks/useScreenChange'
+import { useUIStore } from '@/stores/uiStore'
 import { Box, Flex, Text } from '@mantine/core'
 import { IconMenu2 } from '@tabler/icons-react'
 import clsx from 'clsx'
 import type { FC, ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import useNeedRoomForWinControls from '@/hooks/useNeedRoomForWinControls'
-import { useIsSmallScreen } from '@/hooks/useScreenChange'
-import { useUIStore } from '@/stores/uiStore'
 import Divider from '../common/Divider'
 import { ICON_SIZE, IconButton } from '../common/IconButton'
 import { TitleBarContent } from './AppTitleBar'
-import { MobileWebDownloadBanner } from './DesktopDownloadReminder'
 import { useTitleBarOverlayRoot } from './title-bar-overlay'
 import WindowControls from './WindowControls'
 
@@ -106,7 +105,7 @@ export const PageHeader: FC<PageHeaderProps> = ({ title, left, right, overlay })
       <div className="chatbox-title-bar-overlay pointer-events-none absolute inset-x-0 top-0 z-20">
         {row}
         <div className="pointer-events-auto">
-          <MobileWebDownloadBanner />
+          <></>
         </div>
       </div>
     )
@@ -116,7 +115,7 @@ export const PageHeader: FC<PageHeaderProps> = ({ title, left, right, overlay })
     <>
       {row}
       <Divider className="chatbox-title-bar-divider" />
-      <MobileWebDownloadBanner />
+      <></>
     </>
   )
 }

@@ -1,345 +1,95 @@
-<p align="right">
-  <a href="README.md">English</a> |
-  <a href="./doc/README-CN.md">简体中文</a>
-</p>
+# Chatbox Lite
 
-<h1 align="center">
-<img src='./doc/statics/icon.png' width='30'>
-<span>
-    Chatbox
-    <span style="font-size:8px; font-weight: normal;">(Community Edition)</span>
-</span>
-</h1>
-<p align="center">
-    <em>Your Ultimate AI Copilot on the Desktop. <br />Chatbox is a desktop client for ChatGPT, Claude and other LLMs, available on Windows, Mac, Linux</em>
-</p>
+基于 [Chatbox Community Edition](https://github.com/chatboxai/chatbox) 的聊天精简版，维护于 [smgjch/chatbox](https://github.com/smgjch/chatbox)。尽量保留原版界面、操作习惯和聊天细节。
 
-<p align="center">
-<a href="https://github.com/chatboxai/chatbox/releases" target="_blank">
-<img alt="macOS" src="https://img.shields.io/badge/-macOS-black?style=flat-square&logo=apple&logoColor=white" />
-</a>
-<a href="https://github.com/chatboxai/chatbox/releases" target="_blank">
-<img alt="Windows" src="https://img.shields.io/badge/-Windows-blue?style=flat-square&logo=windows&logoColor=white" />
-</a>
-<a href="https://github.com/chatboxai/chatbox/releases" target="_blank">
-<img alt="Linux" src="https://img.shields.io/badge/-Linux-yellow?style=flat-square&logo=linux&logoColor=white" />
-</a>
-<a href="https://github.com/chatboxai/chatbox/releases" target="_blank">
-<img alt="Downloads" src="https://img.shields.io/github/downloads/chatboxai/chatbox/total.svg?style=flat" />
-</a>
-<a href="#features">
-<img alt="Privacy" src="https://img.shields.io/badge/-Local%20First-green?style=flat-square&logo=shield&logoColor=white" />
-</a>
-</p>
+## 功能
 
-<p align="center">
-<a href="https://www.producthunt.com/posts/chatbox?utm_source=badge-featured&utm_medium=badge&utm_souce=badge-chatbox" target="_blank"><img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=429547&theme=light" alt="Chatbox - Better&#0032;UI&#0032;&#0038;&#0032;Desktop&#0032;App&#0032;for&#0032;ChatGPT&#0044;&#0032;Claude&#0032;and&#0032;other&#0032;LLMs&#0046; | Product Hunt" style="width: 150px; height: 30px;" width="100" height="40" /></a>
-<a href="https://trendshift.io/repositories/14871" target="_blank"><img src="https://trendshift.io/api/badge/repositories/14871" alt="chatboxai%2Fchatbox | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
-</p>
+保留多会话、流式回复、Markdown/代码/公式、消息编辑与重试、会话分支、搜索、上下文压缩、图片输入、文件附件、本地导入导出、主题和快捷键。文档在本地解析，解析出的文本直接进入聊天上下文；大文档仍受所选模型的上下文窗口限制。
 
-<p align="center">
-  <a href="./doc/statics/snapshot_light.png">
-    <img src="./doc/statics/snapshot_light.png" width="400"/>
-  </a>
-  <a href="./doc/statics/snapshot_dark.png">
-    <img src="./doc/statics/snapshot_dark.png" width="400"/>
-  </a>
-</p>
+移除 MCP、知识库、Skills、Agent/工具执行、记忆、Chatbox 账户/订阅/额度/云解析、生成图片、“我的搭档”及网页发布。停用原版遥测、远程配置和自动更新。HTML 代码预览使用本地沙箱 iframe。
 
----
+保留原版第三方模型供应商。自定义供应商支持 OpenAI Chat Completions、OpenAI Responses、Claude 和原生 Gemini 协议。
 
-This is the repository for the Chatbox Community Edition, open-sourced under the GPLv3 license.
+## 接入 AGIHub Gemini
 
-[Chatbox is going open-source Again!](https://github.com/chatboxai/chatbox/issues/2266)
+打开 **设置 → 模型提供方 → 添加提供方 → 添加自定义提供方**，点击 **使用 AGIHub Gemini 预设**，添加后填入自己的 API Key。预设已经配置：
 
-We regularly sync code from the pro repo to this repo, and vice versa.
+| 项目 | 值 |
+| --- | --- |
+| API 模式 | Google Gemini API Compatible |
+| API Host | `https://agihub.bytedance.net/api_proxy/auto_mode/call/v1beta` |
+| 鉴权 | `Authorization: Bearer <API Key>` |
+| 请求体包含 model | 开启 |
+| 流式输出 | 关闭，使用 `:generateContent` |
+| 模型 ID | `gemini-4-argon` |
+| 推理参数模式 | 等级（thinkingLevel） |
 
-## Download
+也可以粘贴完整的 `…/models/gemini-4-argon:generateContent` 地址，程序会提取基地址。其他 Gemini 代理可手动选择 `x-goog-api-key` 或 Bearer 鉴权，并分别控制请求体 `model` 字段和流式请求。启用流式后使用 `:streamGenerateContent?alt=sse`，需要网关支持此接口。
 
-### Desktop
+选择模型后，在输入框的推理强度菜单选择 **默认 / 低 / 中 / 高**。Gemini 3 及更新命名模型使用 `generationConfig.thinkingConfig.thinkingLevel`；Gemini 2.5 使用 `thinkingBudget`。代理使用自定义模型别名时，可在模型编辑中指定推理参数模式。强度按提供方和模型分别保存，切换模型不会串用参数。
 
-<table style="width: 100%">
-  <tr>
-    <td width="25%" align="center">
-      <b>Windows</b>
-    </td>
-    <td width="25%" align="center" colspan="2">
-      <b>MacOS</b>
-    </td>
-    <td width="25%" align="center">
-      <b>Linux</b>
-    </td>
-  </tr>
-  <tr style="text-align: center">
-    <td align="center" valign="middle">
-      <a href='https://chatboxai.app/?c=download-windows'>
-        <img src='./doc/statics/windows.png' style="height:24px; width: 24px" />
-        <br />
-        <b>Setup.exe</b>
-      </a>
-    </td>
-    <td align="center" valign="middle">
-      <a href='https://chatboxai.app/?c=download-mac-intel'>
-        <img src='./doc/statics/mac.png' style="height:24px; width: 24px" />
-        <br />
-        <b>Intel</b>
-      </a>
-    </td>
-    <td align="center" valign="middle">
-      <a href='https://chatboxai.app/?c=download-mac-aarch'>
-        <img src='./doc/statics/mac.png' style="height:24px; width: 24px" />
-        <br />
-        <b style="white-space: nowrap;">Apple Silicon</b>
-      </a>
-    </td>
-    <td align="center" valign="middle">
-      <a href='https://chatboxai.app/?c=download-linux'>
-        <img src='./doc/statics/linux.png' style="height:24px; width: 24px" />
-        <br />
-        <b>AppImage</b>
-      </a>
-    </td>
-  </tr>
-</table>
+选择“高”时，发送的请求形如：
 
-### iOS/Android
-
-<a href='https://apps.apple.com/app/chatbox-ai/id6471368056' style='margin-right: 4px'>
-<img src='./doc/statics/app_store.webp' style="height:38px;" />
-</a>
-<a href='https://play.google.com/store/apps/details?id=xyz.chatboxapp.chatbox' style='margin-right: 4px'>
-<img src='./doc/statics/google_play.png' style="height:38px;" />
-</a>
-<a href='https://chatboxai.app/install?download=android_apk' style='margin-right: 4px; display: inline-flex; justify-content: center'>
-<img src='./doc/statics/android.png' style="height:28px; display: inline-block" />
-.APK
-</a>
-
-For more information: [chatboxai.app](https://chatboxai.app/)
-
-## Quick Start
-
-### For End Users
-1. Download the appropriate installer for your platform from the [releases page](https://github.com/chatboxai/chatbox/releases)
-2. Install and launch Chatbox
-3. Configure your AI provider (OpenAI, Claude, etc.) in settings
-4. Start chatting!
-
-### System Requirements
-
-| Platform | Minimum Version | Architecture |
-|----------|----------------|--------------|
-| Windows | Windows 10 | x64 |
-| macOS | macOS 11 (Big Sur) | Intel/Apple Silicon |
-| Linux | Ubuntu 20.04+ / AppImage supported distros | x64 |
-
-<!-- <table>
-<tr>
-<td>
-<img src="./dec/../doc/demo_mobile_1.png" alt="App Screenshot" style="box-shadow: 2px 2px 10px rgba(0,0,0,0.1); border: 1px solid #ddd; border-radius: 8px; height: 300px" />
-</td>
-<td>
-<img src="./dec/../doc/demo_mobile_2.png" alt="App Screenshot" style="box-shadow: 2px 2px 10px rgba(0,0,0,0.1); border: 1px solid #ddd; border-radius: 8px; height: 300px" />
-</td>
-</tr>
-</table> -->
-
-## Features
-
-### 🤖 AI Model Support
--   **Support for Multiple LLM Providers**  
-    :gear: Seamlessly integrate with a variety of cutting-edge language models:
-    -   OpenAI (ChatGPT)
-    -   Azure OpenAI
-    -   Claude
-    -   Google Gemini Pro
-    -   Ollama (enable access to local models like llama2, Mistral, Mixtral, codellama, vicuna, yi, and solar)
-    -   ChatGLM-6B
-
--   **Image Generation with Dall-E-3**  
-    :art: Create the images of your imagination with Dall-E-3.
-
--   **Enhanced Prompting**  
-    :speech_balloon: Advanced prompting features to refine and focus your queries for better responses.
-
-### 🖥️ User Experience
--   **Local Data Storage**  
-    :floppy_disk: Your data remains on your device, ensuring it never gets lost and maintains your privacy.
-
--   **No-Deployment Installation Packages**  
-    :package: Get started quickly with downloadable installation packages. No complex setup necessary!
-
--   **Ergonomic UI & Dark Theme**  
-    :new_moon: A user-friendly interface with a night mode option for reduced eye strain during extended use.
-
--   **Keyboard Shortcuts**  
-    :keyboard: Stay productive with shortcuts that speed up your workflow.
-
--   **Streaming Reply**  
-    :arrow_forward: Provide rapid responses to your interactions with immediate, progressive replies.
-
-### 📄 Content & Formatting
--   **Markdown, Latex & Code Highlighting**  
-    :scroll: Generate messages with the full power of Markdown and Latex formatting, coupled with syntax highlighting for various programming languages, enhancing readability and presentation.
-
--   **Prompt Library & Message Quoting**  
-    :books: Save and organize prompts for reuse, and quote messages for context in discussions.
-
-### 👥 Collaboration & Sharing
--   **Team Collaboration**  
-    :busts_in_silhouette: Collaborate with ease and share OpenAI API resources among your team. [Learn More](./team-sharing/README.md)
-
-### 🌐 Platform Availability
--   **Cross-Platform Desktop**  
-    :computer: Chatbox is ready for Windows, Mac, and Linux users.
-
--   **Web Version**  
-    :globe_with_meridians: Use the web application on any device with a browser, anywhere.
-
--   **Mobile Apps**  
-    :phone: Native iOS and Android applications for on-the-go access.
-
-### 🌍 Localization
--   **Multilingual Support**  
-    :earth_americas: Catering to a global audience by offering support in multiple languages:
-    -   English
-    -   简体中文 (Simplified Chinese)
-    -   繁體中文 (Traditional Chinese)
-    -   日本語 (Japanese)
-    -   한국어 (Korean)
-    -   Français (French)
-    -   Deutsch (German)
-    -   Русский (Russian)
-    -   Español (Spanish)
-
-### ✨ More Features
--   **And More...**  
-    :sparkles: Constantly enhancing the experience with new features!
-
-## FAQ
-
--   [Frequently Asked Questions](./doc/FAQ.md)
-
-## How to Contribute
-
-We welcome contributions from the community! Here's how you can help make Chatbox better:
-
-### 🐛 Reporting Issues
-- Use [GitHub Issues](https://github.com/chatboxai/chatbox/issues) to report bugs or request features
-- Before creating a new issue, please search existing issues to avoid duplicates
-- Provide detailed information including steps to reproduce, expected behavior, and screenshots if applicable
-
-### 🔧 Pull Requests
-1. Fork the repository and create your branch from `main`
-2. Make your changes and ensure the code follows our coding standards
-3. Test your changes thoroughly
-4. Update documentation if needed
-5. Submit a pull request with a clear description of the changes
-
-### 🌍 Translations
-Help make Chatbox accessible to more people by contributing translations:
-- Translation files are located in the `src/locales` directory
-- Follow the existing translation format
-- Submit a PR with your translation improvements
-
-### 📖 Documentation
-- Improve README, API documentation, or user guides
-- Fix typos or clarify unclear instructions
-- Add examples and tutorials
-
-### 🌟 Other Ways to Contribute
-- Star the repository to show your support
-- Share Chatbox with others
-- Answer questions in [GitHub Discussions](https://github.com/chatboxai/chatbox/discussions)
-- Provide feedback and suggestions
-
-**Thank you for contributing! 🙏**
-
-## Development
-
-### Prerequisites
-
-Before you begin, ensure you have the following installed:
-
-- **Node.js** (v20.x – v22.x) - [Download here](https://nodejs.org/)
-- **pnpm** (v10.x or later) - Install via `corepack enable && corepack prepare pnpm@latest --activate`
-- **Git** - [Download here](https://git-scm.com/)
-
-### Quick Setup
-
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/chatboxai/chatbox.git
-   cd chatbox
-   ```
-
-2. **Install dependencies**
-   ```bash
-   pnpm install
-   ```
-
-3. **Start development server**
-   ```bash
-   pnpm run dev
-   ```
-   The application will start in development mode with hot-reload enabled.
-
-### Build Commands
-
-| Command | Description |
-|---------|-------------|
-| `pnpm run dev` | Start development server with hot-reload |
-| `pnpm run package` | Build and package for current platform |
-| `pnpm run package:all` | Build and package for all platforms |
-| `pnpm run build` | Build for production without packaging |
-| `pnpm run lint` | Run Biome to check code quality |
-| `pnpm run test` | Run Vitest test suite |
-
-### Project Structure
-
-```
-chatbox/
-├── src/
-│   ├── main/               # Electron main process
-│   ├── renderer/           # React renderer (UI)
-│   ├── preload/            # Electron preload scripts
-│   └── shared/             # Shared utilities
-├── doc/                    # Documentation and assets
-├── resources/              # App resources and icons
-├── team-sharing/           # Team collaboration features
-└── package.json            # Project configuration
+```http
+POST /api_proxy/auto_mode/call/v1beta/models/gemini-4-argon:generateContent
+Content-Type: application/json
+Authorization: Bearer <API Key>
 ```
 
-### Development Tips
+```json
+{
+  "model": "gemini-4-argon",
+  "contents": [{ "role": "user", "parts": [{ "text": "hi" }] }],
+  "generationConfig": { "thinkingConfig": { "thinkingLevel": "high" } }
+}
+```
 
-- Use `pnpm run lint` before committing to ensure code quality
-- Follow the existing code style and patterns
-- Test your changes on both light and dark themes
-- Ensure cross-platform compatibility when making UI changes
+“默认”不主动发送推理配置。实际请求还可能包含会话系统提示和其他聊天参数。具体参数是否被接受取决于网关对应的模型。
 
-### Troubleshooting
+## 开发与构建
 
-**Issue**: `pnpm install` fails
-- **Solution**: Ensure you're using pnpm (not npm or yarn) and Node.js version is within the required range. Run `corepack enable` if pnpm is not found.
+需要 Node.js 22.13–22.x 和 pnpm 10.17 或更新版本。
 
-**Issue**: Build fails on Windows
-- **Solution**: Run `pnpm config set script-shell "C:\\Program Files\\git\\bin\\bash.exe"` if using Git Bash
+```bash
+corepack enable
+pnpm install --frozen-lockfile
+pnpm dev
+```
 
-**Issue**: Changes not reflecting in development
-- **Solution**: Stop the dev server, delete `node_modules/.vite`, and restart
+仅启动浏览器界面：
 
-## Star History
+```bash
+pnpm dev:web:standalone
+```
 
-[![Star History Chart](https://star-history.dera.page/svg?repos=chatboxai/chatbox&type=Date)](https://star-history.dera.page/#chatboxai/chatbox&Date)
+访问 `http://localhost:1212`。浏览器版请求受网关 CORS 限制，桌面版通过 Electron 网络层请求。
 
-## Contact
+检查与构建：
 
-[Email](mailto:hi@chatboxai.com)
+```bash
+pnpm check
+pnpm check:packages
+pnpm test
+pnpm build
+pnpm exec electron-builder --mac zip --arm64 --publish never
+```
 
-## License
+最后一条命令在 macOS 上生成 `release/build/mac-arm64/Chatbox Lite.app` 和对应 ZIP 压缩包；Windows/Linux 可在相应平台使用 electron-builder 的 `--win` / `--linux` 参数。默认构建不发布、不公证，也不依赖原版签名服务。
 
-[LICENSE](./LICENSE)
+## 数据兼容
 
-### Development launch options
+应用名和标识使用独立的 Chatbox Lite，桌面数据目录与原版分开。可通过原版导出、Lite 导入迁移聊天。导入后会清除账户密钥等官方服务设置，并强制关闭已移除的服务；第三方供应商配置继续保留。
 
-Skip onboarding and open a page with `CHATBOX_SKIP_GUIDE=1 CHATBOX_START_PAGE=/settings pnpm dev`, or pass `--skip-guide --start-page=/settings` after `pnpm exec electron-vite dev --`. Web development also accepts `?skipGuide=1`.
+兼容结构仍保留部分旧记录字段，以读取已有会话和备份。历史工具记录只显示内容，不提供执行入口；旧 Agent 会话按普通聊天处理。知识库索引、记忆、Skills、工具工作目录等不迁移为可运行功能。
+
+## 验证说明
+
+2026-11-26：应用和工作区 TypeScript 检查通过；完整 `pnpm test` 共 6,795 项通过、14 项跳过；Electron 生产构建通过。macOS arm64 本地签名应用已验证启动、真实 Electron HTTP 通道、模型选择、文本与图片附件、PDF 本地解析、Markdown 显示、自动命名、记录恢复和多轮聊天的推理强度保存。
+
+新增测试覆盖 Gemini 真实 SDK 请求序列化、Bearer/Google 两种鉴权、基地址处理、流式与非流式协议、推理参数、供应商配置导入以及聊天上下文隔离。另通过浏览器验证预设添加、推理强度选择、发送回复、自动命名和刷新后的记录恢复。
+
+AGIHub 请求使用模拟服务验证，没有使用真实 API Key 进行线上调用。测试不等同于确认网关当前模型可用性。
+
+## 许可证
+
+沿用 [GPL-3.0](LICENSE)。原版 Chatbox 的版权和作者归属保持不变；Chatbox Lite 是修改后的独立 fork。

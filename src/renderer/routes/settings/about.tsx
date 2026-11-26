@@ -1,15 +1,14 @@
-import { Button, Flex, Image } from '@mantine/core'
-import { IconChevronRight } from '@tabler/icons-react'
-import { createFileRoute } from '@tanstack/react-router'
-import { useTranslation } from 'react-i18next'
 import { ScalableIcon } from '@/components/common/ScalableIcon'
 import { SettingRow, SettingSwitchRow, SettingsPage, SettingsSection } from '@/components/settings/SettingsLayout'
 import useVersion from '@/hooks/useVersion'
 import platform from '@/platform'
 import { router } from '@/router'
-import { UpdateSection } from '@/routes/about'
 import iconPNG from '@/static/icon.png'
 import { useLanguage, useSettingsStore } from '@/stores/settingsStore'
+import { Button, Flex, Image } from '@mantine/core'
+import { IconChevronRight } from '@tabler/icons-react'
+import { createFileRoute } from '@tanstack/react-router'
+import { useTranslation } from 'react-i18next'
 
 export const Route = createFileRoute('/settings/about')({
   component: RouteComponent,
@@ -36,7 +35,7 @@ export function RouteComponent() {
               <span>Chatbox{hasVersion ? ` ${version.version}` : ''}</span>
             </Flex>
           }
-          control={<UpdateSection language={language} needCheckUpdate={version.needCheckUpdate} />}
+          control={<></>}
         />
         <SettingRow
           id="about-chatbox"
@@ -63,19 +62,6 @@ export function RouteComponent() {
             label={t('Launch at system startup')}
             checked={autoLaunch}
             onChange={(checked) => setSettings({ autoLaunch: checked })}
-          />
-          <SettingSwitchRow
-            id="auto-update"
-            label={t('Automatic updates')}
-            checked={autoUpdate}
-            onChange={(checked) => setSettings({ autoUpdate: checked })}
-          />
-          <SettingSwitchRow
-            id="beta-update"
-            label={t('Beta updates')}
-            description={t('Get new features earlier; beta builds may be less stable.')}
-            checked={betaUpdate}
-            onChange={(checked) => setSettings({ betaUpdate: checked })}
           />
         </SettingsSection>
       )}

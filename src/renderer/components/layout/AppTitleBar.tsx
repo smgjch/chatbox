@@ -1,3 +1,10 @@
+import { AppTooltip as Tooltip } from '@/components/ui/tooltip'
+import { FORCE_ENABLE_DEV_PAGES } from '@/dev/devToolsConfig'
+import useNeedRoomForWinControls from '@/hooks/useNeedRoomForWinControls'
+import { useIsSmallScreen, useSidebarWidth } from '@/hooks/useScreenChange'
+import platform from '@/platform'
+import icon from '@/static/icon.png'
+import { useUIStore } from '@/stores/uiStore'
 import { Box, Flex, Image, Text } from '@mantine/core'
 import { TestId } from '@shared/automation/testids'
 import { IconLayoutSidebarLeftCollapse, IconLayoutSidebarLeftExpand } from '@tabler/icons-react'
@@ -6,13 +13,6 @@ import { atom, useAtomValue, useSetAtom } from 'jotai'
 import type { ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
-import { AppTooltip as Tooltip } from '@/components/ui/tooltip'
-import { FORCE_ENABLE_DEV_PAGES } from '@/dev/devToolsConfig'
-import useNeedRoomForWinControls from '@/hooks/useNeedRoomForWinControls'
-import { useIsSmallScreen, useSidebarWidth } from '@/hooks/useScreenChange'
-import platform from '@/platform'
-import icon from '@/static/icon.png'
-import { useUIStore } from '@/stores/uiStore'
 import { IconButton } from '../common/IconButton'
 import ThemeSwitchButton from '../dev/ThemeSwitchButton'
 import WindowControls from './WindowControls'
@@ -76,7 +76,7 @@ export function AppTitleBar() {
           >
             <Image src={icon} w={18} h={18} />
             <Text span fz={14} fw={600} lh="20px" c="chatbox-primary" truncate>
-              Chatbox
+              Chatbox Lite
             </Text>
           </Flex>
         )}

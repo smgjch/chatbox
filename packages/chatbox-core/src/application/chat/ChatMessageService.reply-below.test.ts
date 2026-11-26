@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from 'vitest'
-import { rowChatFixture } from './testing/row-chat-fixture'
 import { GenerationRuntimeStore } from '../../generation/runtime-store'
 import type { Message, Session } from '../../types'
 import { ChatMessageService } from './ChatMessageService'
+import { rowChatFixture } from './testing/row-chat-fixture'
 
 const message = (id: string, role: Message['role']): Message => ({
   id,
@@ -111,10 +111,10 @@ describe('ChatMessageService.replyBelow', () => {
     expect(h.get().threads?.[0].messages.map(({ id }) => id)).toEqual(['old-prompt', 'candidate-1', 'old-answer'])
   })
 
-  it('rejects work-mode, compaction and invalid targets at the command boundary', async () => {
+  it('allows legacy work sessions while blocking compaction and invalid targets', async () => {
     const work = harness()
     work.set({ ...work.get(), settings: { agentMode: { value: 'on', locked: true, lockReason: 'message_sent' } } })
-    await expect(work.service.replyBelow('concurrent-chat', 'prompt')).rejects.toThrow('Work Mode')
+    await expect(work.service.replyBelow('concurrent-chat', 'prompt')).resolves.toBeUndefined()
     const compacting = harness()
     compacting.compact()
     await expect(compacting.service.replyBelow('concurrent-chat', 'prompt')).rejects.toMatchObject({
@@ -123,7 +123,7 @@ describe('ChatMessageService.replyBelow', () => {
     const invalid = harness()
     await expect(invalid.service.replyBelow('concurrent-chat', 'original')).rejects.toThrow('cannot receive')
     await expect(invalid.service.replyBelow('concurrent-chat', 'missing')).rejects.toThrow()
-    expect(work.orchestrate).not.toHaveBeenCalled()
+    expect(work.orchestrate).toHaveBeenCalled()
     expect(compacting.orchestrate).not.toHaveBeenCalled()
     expect(invalid.get().messages).toHaveLength(3)
   })

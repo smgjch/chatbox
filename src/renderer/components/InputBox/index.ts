@@ -1,5 +1,5 @@
 // Re-export named exports
-export { default as AgentModeButton } from './AgentModeButton'
+
 export { desktopActionIconProps, mobileActionIconProps } from './actionIconStyles'
 export { ImageUploadButton } from './ImageUploadButton'
 export { ImageUploadInput } from './ImageUploadInput'
@@ -8,4 +8,3 @@ export type { InputBoxPayload, InputBoxProps, InputBoxRef } from './InputBox'
 // Export default separately to avoid HMR issues
 export { default } from './InputBox'
 export { SessionSettingsButton } from './SessionSettingsButton'
-export { WebBrowsingButton } from './WebBrowsingButton'

@@ -12,7 +12,6 @@ import {
   getProviderModelsFromRegistry,
   getRegistry,
 } from '../../packages/model-registry'
-import * as remote from '../../packages/remote'
 import type { ModelSettingUtil } from './interface'
 
 export default abstract class BaseConfig implements ModelSettingUtil {
@@ -27,16 +26,7 @@ export default abstract class BaseConfig implements ModelSettingUtil {
   protected abstract listProviderModels(settings: ProviderSettings): Promise<ProviderModelInfo[]>
 
   private async listRemoteProviderModels(): Promise<ProviderModelInfo[]> {
-    return await remote
-      .getModelManifest({
-        aiProvider: this.provider,
-      })
-      .then((res) => {
-        return Array.isArray(res.models) ? res.models : []
-      })
-      .catch(() => {
-        return []
-      })
+    return []
   }
 
   // 有四个来源：本地写死、后端配置、服务商模型列表、models.dev registry（fallback + enrichment）

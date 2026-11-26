@@ -78,17 +78,17 @@ export default class MenuBuilder {
 
   buildDarwinTemplate(): MenuItemConstructorOptions[] {
     const subMenuAbout: DarwinMenuItemConstructorOptions = {
-      label: 'Chatbox',
+      label: 'Chatbox Lite',
       submenu: [
         {
-          label: 'About Chatbox',
+          label: 'About Chatbox Lite',
           selector: 'orderFrontStandardAboutPanel:',
         },
         { type: 'separator' },
         { label: 'Services', submenu: [] },
         { type: 'separator' },
         {
-          label: 'Hide Chatbox',
+          label: 'Hide Chatbox Lite',
           accelerator: 'Command+H',
           selector: 'hide:',
         },

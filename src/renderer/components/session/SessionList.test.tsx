@@ -531,32 +531,6 @@ describe('SessionList folders', () => {
     expect(uiStore.getState().showSidebar).toBe(platformType === 'desktop')
   })
 
-  test('starts a Work Mode chat with the directory project selected', () => {
-    sessionListState.folders = [{ ...folders[0], workingDirectory: '/projects/work' }]
-    renderList()
-    fireEvent.contextMenu(screen.getByRole('button', { name: 'Work' }))
-    fireEvent.click(screen.getByRole('button', { name: 'New Chat' }))
-
-    expect(navigateMock).toHaveBeenCalledWith({ to: '/', search: { folderId: 'work' } })
-    expect(uiStore.getState().newSessionState.workingDirectories).toEqual(['/projects/work'])
-    expect(uiStore.getState().sessionAgentModeMap.new?.value).toBe('on')
-  })
-
-  test('clears the directory project mode when starting a chat in a plain project', () => {
-    sessionListState.folders = [{ ...folders[0], workingDirectory: '/projects/work' }, folders[1]]
-    renderList()
-    fireEvent.contextMenu(screen.getByRole('button', { name: 'Work' }))
-    fireEvent.click(screen.getByRole('button', { name: 'New Chat' }))
-    expect(uiStore.getState().sessionAgentModeMap.new?.value).toBe('on')
-
-    fireEvent.contextMenu(screen.getByRole('button', { name: 'Home' }))
-    fireEvent.click(screen.getAllByRole('button', { name: 'New Chat' })[1])
-
-    expect(navigateMock).toHaveBeenLastCalledWith({ to: '/', search: { folderId: 'home' } })
-    expect(uiStore.getState().newSessionState.workingDirectories).toEqual([])
-    expect(uiStore.getState().sessionAgentModeMap.new).toBeUndefined()
-  })
-
   test('disables the project long press while reordering chats', () => {
     vi.useFakeTimers()
     renderList()

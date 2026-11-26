@@ -77,24 +77,6 @@ describe('encrypted reasoning source isolation', () => {
     expect(accountlessOAuth('token')).not.toBe(accountlessOAuth('refreshed-token'))
   })
 
-  it('binds ChatboxAI ciphertext to the license identity', () => {
-    const create = (licenseKey: string) =>
-      getModel(
-        { provider: ModelProviderEnum.ChatboxAI, modelId: 'responses-model' },
-        {
-          ...defaults(),
-          licenseKey,
-          providers: {
-            [ModelProviderEnum.ChatboxAI]: { models: [{ modelId: 'responses-model', apiStyle: 'openai-responses' }] },
-          },
-        },
-        newConfigs(),
-        dependencies
-      )
-    expect(create('license-a').reasoningReplaySource).toBeTruthy()
-    expect(create('license-a').reasoningReplaySource).not.toBe(create('license-b').reasoningReplaySource)
-  })
-
   it('only emits ciphertext for matching provenance and never sends the local marker', async () => {
     const origin = model()
     const messages: Message[] = [

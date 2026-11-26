@@ -1,3 +1,24 @@
+import { ScalableIcon } from '@/components/common/ScalableIcon'
+import { Modal } from '@/components/layout/Overlay'
+import useNeedRoomForWinControls from '@/hooks/useNeedRoomForWinControls'
+import { getSettingsSearchParam, navigateToDynamicPath, router } from '@/router'
+import { RouteComponent as SettingsAboutRouteComponent } from '@/routes/settings/about'
+import { RouteComponent as SettingsAdvancedRouteComponent } from '@/routes/settings/advanced'
+import { RouteComponent as SettingsAppIconRouteComponent } from '@/routes/settings/app-icon'
+import { RouteComponent as SettingsAppearanceRouteComponent } from '@/routes/settings/appearance'
+import { RouteComponent as SettingsArchiveRouteComponent } from '@/routes/settings/archive'
+import { RouteComponent as SettingsChatRouteComponent } from '@/routes/settings/chat'
+import { RouteComponent as SettingsContextRouteComponent } from '@/routes/settings/context'
+import { RouteComponent as SettingsDataRouteComponent } from '@/routes/settings/data'
+import { RouteComponent as SettingsDefaultModelsRouteComponent } from '@/routes/settings/default-models'
+import { RouteComponent as SettingsDocumentParserRouteComponent } from '@/routes/settings/document-parser'
+import { RouteComponent as SettingsGeneralRouteComponent } from '@/routes/settings/general'
+import { RouteComponent as SettingsHotkeysRouteComponent } from '@/routes/settings/hotkeys'
+import { RouteComponent as SettingsIndexRouteComponent } from '@/routes/settings/index'
+import { RouteComponent as SettingsProviderProviderIdRouteComponent } from '@/routes/settings/provider/$providerId'
+import { RouteComponent as SettingsProviderIndexRouteComponent } from '@/routes/settings/provider/index'
+import { RouteComponent as SettingsProviderRouteRouteComponent } from '@/routes/settings/provider/route'
+import { SettingsRoot } from '@/routes/settings/route'
 import { Box, Button, Flex, Text, Title } from '@mantine/core'
 import { TestId } from '@shared/automation/testids'
 import { IconX } from '@tabler/icons-react'
@@ -13,34 +34,6 @@ import clsx from 'clsx'
 import { type FC, useCallback, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Toaster } from 'sonner'
-import { ScalableIcon } from '@/components/common/ScalableIcon'
-import SettingsKnowledgeBaseRouteComponent from '@/components/knowledge-base/KnowledgeBase'
-import { Modal } from '@/components/layout/Overlay'
-import useNeedRoomForWinControls from '@/hooks/useNeedRoomForWinControls'
-import { getSettingsSearchParam, navigateToDynamicPath, router } from '@/router'
-import { RouteComponent as SettingsAboutRouteComponent } from '@/routes/settings/about'
-import { RouteComponent as SettingsAdvancedRouteComponent } from '@/routes/settings/advanced'
-import { RouteComponent as SettingsAgentRouteComponent } from '@/routes/settings/agent'
-import { RouteComponent as SettingsAppIconRouteComponent } from '@/routes/settings/app-icon'
-import { RouteComponent as SettingsAppearanceRouteComponent } from '@/routes/settings/appearance'
-import { RouteComponent as SettingsArchiveRouteComponent } from '@/routes/settings/archive'
-import { RouteComponent as SettingsChatRouteComponent } from '@/routes/settings/chat'
-import { RouteComponent as SettingsChatboxAiRouteComponent } from '@/routes/settings/chatbox-ai'
-import { RouteComponent as SettingsContextRouteComponent } from '@/routes/settings/context'
-import { RouteComponent as SettingsDataRouteComponent } from '@/routes/settings/data'
-import { RouteComponent as SettingsDefaultModelsRouteComponent } from '@/routes/settings/default-models'
-import { RouteComponent as SettingsDocumentParserRouteComponent } from '@/routes/settings/document-parser'
-import { RouteComponent as SettingsGeneralRouteComponent } from '@/routes/settings/general'
-import { RouteComponent as SettingsHotkeysRouteComponent } from '@/routes/settings/hotkeys'
-import { RouteComponent as SettingsIndexRouteComponent } from '@/routes/settings/index'
-import { RouteComponent as SettingsMcpRouteComponent } from '@/routes/settings/mcp'
-import { RouteComponent as SettingsProviderProviderIdRouteComponent } from '@/routes/settings/provider/$providerId'
-import { RouteComponent as SettingsProviderChatboxAiRouteComponent } from '@/routes/settings/provider/chatbox-ai'
-import { RouteComponent as SettingsProviderIndexRouteComponent } from '@/routes/settings/provider/index'
-import { RouteComponent as SettingsProviderRouteRouteComponent } from '@/routes/settings/provider/route'
-import { SettingsRoot } from '@/routes/settings/route'
-import { RouteComponent as SettingsSkillsRouteComponent } from '@/routes/settings/skills'
-import { RouteComponent as SettingsWebSearchRouteComponent } from '@/routes/settings/web-search'
 
 export type SettingsModalProps = {}
 
@@ -51,12 +44,6 @@ const RootRoute = createRootRoute({
 const SettingsIndexRoute = createRoute({
   component: SettingsIndexRouteComponent,
   path: '/settings/',
-  getParentRoute: () => RootRoute,
-})
-
-const SettingsChatboxAiRoute = createRoute({
-  component: SettingsChatboxAiRouteComponent,
-  path: '/settings/chatbox-ai',
   getParentRoute: () => RootRoute,
 })
 
@@ -114,36 +101,6 @@ const SettingsArchiveRoute = createRoute({
   getParentRoute: () => RootRoute,
 })
 
-const SettingsWebSearchRoute = createRoute({
-  component: SettingsWebSearchRouteComponent,
-  path: '/settings/web-search',
-  getParentRoute: () => RootRoute,
-})
-
-const SettingsMcpRoute = createRoute({
-  component: SettingsMcpRouteComponent,
-  path: '/settings/mcp',
-  getParentRoute: () => RootRoute,
-})
-
-const SettingsSkillsRoute = createRoute({
-  component: SettingsSkillsRouteComponent,
-  path: '/settings/skills',
-  getParentRoute: () => RootRoute,
-})
-
-const SettingsAgentRoute = createRoute({
-  component: SettingsAgentRouteComponent,
-  path: '/settings/agent',
-  getParentRoute: () => RootRoute,
-})
-
-const SettingsKnowledgeBaseRoute = createRoute({
-  component: SettingsKnowledgeBaseRouteComponent,
-  path: '/settings/knowledge-base',
-  getParentRoute: () => RootRoute,
-})
-
 const SettingsDocumentParserRoute = createRoute({
   component: SettingsDocumentParserRouteComponent,
   path: '/settings/document-parser',
@@ -174,27 +131,16 @@ const SettingsProviderIndexRoute = createRoute({
   getParentRoute: () => SettingsProviderRouteRoute,
 })
 
-const SettingsProviderChatboxAiRoute = createRoute({
-  component: SettingsProviderChatboxAiRouteComponent,
-  path: '/chatbox-ai',
-  getParentRoute: () => SettingsProviderRouteRoute,
-})
-
 const SettingsProviderProviderIdRoute = createRoute({
   component: SettingsProviderProviderIdRouteComponent,
   path: '/$providerId',
   getParentRoute: () => SettingsProviderRouteRoute,
 })
 
-SettingsProviderRouteRoute.addChildren([
-  SettingsProviderIndexRoute,
-  SettingsProviderChatboxAiRoute,
-  SettingsProviderProviderIdRoute,
-])
+SettingsProviderRouteRoute.addChildren([SettingsProviderIndexRoute, SettingsProviderProviderIdRoute])
 
 const routeTree = RootRoute.addChildren([
   SettingsIndexRoute,
-  SettingsChatboxAiRoute,
   SettingsGeneralRoute,
   SettingsAppearanceRoute,
   SettingsDataRoute,
@@ -204,11 +150,6 @@ const routeTree = RootRoute.addChildren([
   SettingsChatRoute,
   SettingsContextRoute,
   SettingsArchiveRoute,
-  SettingsWebSearchRoute,
-  SettingsMcpRoute,
-  SettingsSkillsRoute,
-  SettingsAgentRoute,
-  SettingsKnowledgeBaseRoute,
   SettingsDocumentParserRoute,
   SettingsHotkeysRoute,
   SettingsDefaultModelsRoute,
@@ -236,7 +177,11 @@ export const SettingsModal: FC<SettingsModalProps> = (props) => {
   const settingsPath = getSettingsSearchParam(location.search)
   useEffect(() => {
     if (settingsPath) {
-      settingsModalHistory.replace(settingsPath)
+      settingsModalHistory.replace(
+        /(?:chatbox-ai|knowledge-base|skills|agent|mcp|web-search)/.test(settingsPath)
+          ? '/settings/provider'
+          : settingsPath
+      )
     }
   }, [settingsPath])
 

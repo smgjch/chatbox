@@ -7,16 +7,14 @@
  * - 可导出会话结果到文件
  */
 
+import { type ImageGenerationStorage, IndexedDBImageGenerationStorage } from '@/storage/ImageGenerationStorage'
+import { IndexedDBSessionMetaStorage, type SessionMetaStorage } from '@/storage/SessionMetaStorage'
 import { InMemorySessionRowStore } from '@chatbox/core/testing'
 import type { AnalyticsEventParams } from '@shared/analytics'
 import * as defaults from '@shared/defaults'
 import type { Config, Language, Settings, ShortcutSetting } from '@shared/types'
 import { v4 as uuidv4 } from 'uuid'
-import { type ImageGenerationStorage, IndexedDBImageGenerationStorage } from '@/storage/ImageGenerationStorage'
-import { IndexedDBSessionMetaStorage, type SessionMetaStorage } from '@/storage/SessionMetaStorage'
 import type { Exporter, Platform, PlatformType, Storage } from './interfaces'
-import type { KnowledgeBaseController } from './knowledge-base/interface'
-import type { SessionAttachmentRagController } from './session-attachment-rag/interface'
 
 /**
  * 内存存储类，用于测试环境
@@ -332,14 +330,6 @@ export default class TestPlatform implements Platform {
 
   public async installUpdate(): Promise<void> {
     throw new Error('Method not implemented in test platform.')
-  }
-
-  public getKnowledgeBaseController(): KnowledgeBaseController {
-    throw new Error('Knowledge base not implemented in test platform.')
-  }
-
-  public getSessionAttachmentRagController(): SessionAttachmentRagController {
-    throw new Error('Session attachment RAG not implemented in test platform.')
   }
 
   public getImageGenerationStorage(): ImageGenerationStorage {

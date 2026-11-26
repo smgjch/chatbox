@@ -1,3 +1,6 @@
+import { rendererApplication } from '@/app/renderer-application'
+import { navigateToDynamicPath, router } from '@/router'
+import { sortSessionRecords } from '@/storage/SessionMetaStorage'
 import {
   areSessionsInSameListGroup,
   excludeCollapsedFolderSessions,
@@ -6,10 +9,6 @@ import {
 } from '@chatbox/core/utils/session-sort'
 import type { Message, SessionHeader } from '@shared/types'
 import { getDefaultStore } from 'jotai'
-import { rendererApplication } from '@/app/renderer-application'
-import platform from '@/platform'
-import { navigateToDynamicPath, router } from '@/router'
-import { sortSessionRecords } from '@/storage/SessionMetaStorage'
 import * as atoms from '../atoms'
 import { clearSessionGenerationStopOperations } from '../generationStopOperations'
 import * as scrollActions from '../scrollActions'
@@ -291,14 +290,6 @@ export async function clear(sessionId: string) {
         for (const id of committed.cancelMessageIds)
           rendererApplication.generationRuntime.discard(sessionId, id, 'session-cleared')
         clearSessionActivity(sessionId)
-        if (platform.isDesktopLike)
-          cleanup = platform
-            .getSessionAttachmentRagController()
-            .deleteSessionAttachments(sessionId)
-            .then(() => undefined)
-            .catch((error: unknown) => {
-              console.warn('Failed to cleanup session attachment RAG entries while clearing session:', error)
-            })
       }
     )
     if (result) return

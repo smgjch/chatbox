@@ -5,7 +5,7 @@ import '@mantine/spotlight/styles.css'
 import { RouterProvider } from '@tanstack/react-router'
 import { useAtomValue } from 'jotai'
 import 'photoswipe/dist/photoswipe.css'
-import { lazy, StrictMode, Suspense, useState } from 'react'
+import { StrictMode, Suspense, useState } from 'react'
 import ReactDOM from 'react-dom/client'
 import {
   bootstrapRenderer,
@@ -17,7 +17,6 @@ import {
 import { ErrorBoundary } from './components/common/ErrorBoundary'
 import { sessionStartupRecovery } from './packages/session-startup-recovery'
 import platform from './platform'
-import reportWebVitals from './reportWebVitals'
 import { router } from './router'
 import './static/globals.css'
 import './static/index.css'
@@ -25,15 +24,12 @@ import { initLogAtom, migrationProcessAtom } from './stores/atoms/utilAtoms'
 import { captureRendererDevLaunchOptions } from './utils/dev-launch'
 import { CHATBOX_BUILD_TARGET } from './variables'
 
-const MobileExecutionHost = lazy(() => import('./packages/mobile-work-mode/MobileExecutionHost'))
-
 // 按需加载 polyfill
 import './setup/load_polyfill'
 
 // Publish the automation contract version during renderer startup.
 import './setup/automation_contract'
 // 引入保护代码
-import './setup/protect'
 
 // 开发环境下引入错误测试工具
 // if (process.env.NODE_ENV === 'development') {
@@ -46,7 +42,6 @@ import './setup/protect'
 
 if (CHATBOX_BUILD_TARGET === 'mobile_app') {
   void import('./setup/mobile_safe_area')
-
 }
 
 // ==========渲染节点==============
@@ -120,7 +115,7 @@ void runRendererStartup({
           <ChatboxProvider application={rendererApplication}>
             {platform.type === 'mobile' ? (
               <Suspense fallback={null}>
-                <MobileExecutionHost />
+                <></>
               </Suspense>
             ) : null}
             <RouterProvider router={router} />
@@ -175,4 +170,3 @@ void runRendererStartup({
 // If you want to start measuring performance in your app, pass a function
 // to log results (for example: reportWebVitals(console.log))
 // or send to an analytics endpoint. Learn more: https://bit.ly/CRA-vitals
-reportWebVitals()

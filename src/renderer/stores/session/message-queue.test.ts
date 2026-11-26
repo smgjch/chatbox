@@ -1,6 +1,6 @@
+import type { runCompactionWithUIState } from '@/packages/context-management/compaction'
 import type { Message, Session } from '@shared/types'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { runCompactionWithUIState } from '@/packages/context-management/compaction'
 
 const { getSessionMock, submitMock, insertMessageMock, generateMock, runCompactionMock, isCompactionInProgressMock } =
   vi.hoisted(() => {
@@ -53,12 +53,11 @@ vi.mock('@/lib/utils', () => ({
   getLogger: () => ({ error: vi.fn() }),
 }))
 
-import { resetSessionGenerationLocksForTests } from '@chatbox/core/generation'
 import { rendererApplication } from '@/app/renderer-application'
+import { resetSessionGenerationLocksForTests } from '@chatbox/core/generation'
 import {
   clearPendingQueuedMessages,
   clearQueue,
-  readConversationAnchorId,
   enqueueCompactionRequest,
   enqueueUserMessage,
   flushMessageQueueForTests,
@@ -68,6 +67,7 @@ import {
   messageQueueStore,
   pauseQueue,
   type QueuedUserMessage,
+  readConversationAnchorId,
   releaseInFlightQueuedMessage,
   removeQueuedMessage,
   requestSteerFirstQueuedMessage,
@@ -227,29 +227,6 @@ describe('message queue', () => {
 
     expect(submitMock).toHaveBeenCalledOnce()
     expect(getQueueIds()).toEqual([])
-  })
-
-  it('defers while a tool call is paused waiting for approval', async () => {
-    currentSession.messages.push({
-      id: 'paused',
-      role: 'assistant',
-      contentParts: [
-        {
-          type: 'tool-call',
-          state: 'paused',
-          toolCallId: 'tool-1',
-          toolName: 'user_exec',
-          args: {},
-          pauseReason: { type: 'user_exec_approval', command: 'ls' },
-        },
-      ],
-      finishReason: 'tool-call-paused',
-    })
-
-    enqueueUserMessage('session-1', userMessage('m1'))
-    await flushMessageQueueForTests()
-    expect(submitMock).not.toHaveBeenCalled()
-    expect(getQueueIds()).toEqual(['m1'])
   })
 
   it('pauses the queue when the last assistant reply was canceled, and resumes via Send now', async () => {
@@ -841,30 +818,6 @@ describe('message queue', () => {
       expect(runCompactionMock).toHaveBeenCalledOnce()
       expect(getQueueIds()).toEqual([])
       expect(hasQueuedWork('session-1')).toBe(false)
-    })
-
-    it('defers while a tool call waits for a user decision', async () => {
-      currentSession.messages.push({
-        id: 'paused',
-        role: 'assistant',
-        contentParts: [
-          {
-            type: 'tool-call',
-            state: 'paused',
-            toolCallId: 'tool-1',
-            toolName: 'user_exec',
-            args: {},
-            pauseReason: { type: 'user_exec_approval', command: 'ls' },
-          },
-        ],
-        finishReason: 'tool-call-paused',
-      })
-
-      enqueueCompactionRequest('session-1', { force: true })
-      await flushMessageQueueForTests()
-
-      expect(runCompactionMock).not.toHaveBeenCalled()
-      expect(getQueueIds()).toHaveLength(1)
     })
 
     it('does not start a second summary while one already runs', async () => {

@@ -63,7 +63,7 @@ describe('settings migrations', () => {
         refreshToken: 'oauth-refresh',
       },
     })
-    expect(migrated.skills.translationEnabled).toBe(true)
+    expect(migrated.skills.translationEnabled).toBe(false)
     expect(migrated.extension.documentParser).toEqual({ type: 'chatbox-ai' })
   })
 

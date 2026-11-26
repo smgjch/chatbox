@@ -1,7 +1,7 @@
+import { RendererSettingsEffects, type RendererSettingsEffectsHost } from '@/adapters/RendererSettingsEffects'
 import type { LoggerPort, SettingsStoragePort } from '@chatbox/core/ports'
 import { type ChatApplication, type CreateChatApplicationOptions, createChatApplication } from '@chatbox/react'
-import type { AuthInfoStore, LastUsedModelStore } from '@chatbox/react/stores'
-import { RendererSettingsEffects, type RendererSettingsEffectsHost } from '@/adapters/RendererSettingsEffects'
+import type { LastUsedModelStore } from '@chatbox/react/stores'
 
 export type RendererHostKind = 'desktop' | 'web' | 'capacitor'
 
@@ -15,11 +15,7 @@ export interface RendererHostDescriptor {
 }
 
 export interface CreateRendererApplicationOptions
-  extends Omit<
-    CreateChatApplicationOptions,
-    'authInfoStore' | 'lastUsedModelStore' | 'settings' | 'initializeSessionsOnBootstrap'
-  > {
-  authInfoStore: AuthInfoStore
+  extends Omit<CreateChatApplicationOptions, 'lastUsedModelStore' | 'settings' | 'initializeSessionsOnBootstrap'> {
   lastUsedModelStore: LastUsedModelStore
   host: RendererHostDescriptor
   settingsLogger?: LoggerPort
@@ -27,7 +23,6 @@ export interface CreateRendererApplicationOptions
 }
 
 export interface RendererApplication extends ChatApplication {
-  readonly authInfoStore: AuthInfoStore
   readonly lastUsedModelStore: LastUsedModelStore
   readonly host: RendererHostDescriptor
   readonly settingsStorage: SettingsStoragePort
@@ -52,7 +47,6 @@ export function createRendererApplication(options: CreateRendererApplicationOpti
 
   const disposeApplication = application.dispose.bind(application)
   return Object.assign(application, {
-    authInfoStore: options.authInfoStore,
     lastUsedModelStore: options.lastUsedModelStore,
     host: options.host,
     settingsStorage: options.settingsStorage,

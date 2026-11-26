@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import type { Message, Session } from '../types'
 import { InMemorySessionRepository } from '../testing/InMemorySessionRepository'
+import type { Message, Session } from '../types'
 import {
   assertSessionActionAllowed,
   getSessionActionGate,
@@ -77,11 +77,11 @@ describe('row generation locks', () => {
     expect(state.generatingReplyCount).toBe(1)
     expect(state.anyReplyGenerating).toBe(true)
     expect(state.compactionRunning).toBe(true)
-    expect(state.awaitingPauseDecision).toBe(true)
+    expect(state.awaitingPauseDecision).toBe(false)
     expect(isGenerationLocked(state)).toBe(true)
   })
 
-  it('locks the composer on a tool-call-limit pause, not just on approvals', async () => {
+  it('allows continuing a legacy tool-call-limit conversation as chat', async () => {
     const session: Session = {
       id: 'session-limit',
       name: 'Session',
@@ -106,12 +106,9 @@ describe('row generation locks', () => {
 
     const state = await readLocks(session)
 
-    expect(state.awaitingPauseDecision).toBe(true)
+    expect(state.awaitingPauseDecision).toBe(false)
     expect(state.anyReplyGenerating).toBe(false)
-    expect(getSessionActionGate('submit-message', state)).toEqual({
-      allowed: false,
-      reason: 'awaiting-pause-decision',
-    })
+    expect(getSessionActionGate('submit-message', state)).toEqual({ allowed: true })
   })
 
   it('ignores a paused tool call this build offers no action for', async () => {
@@ -250,34 +247,6 @@ describe('getSessionActionGate', () => {
       reason: 'generating',
     })
     expect(getSessionActionGate('switch-fork', preparing, { sessionMode: 'chat' })).toEqual({ allowed: true })
-  })
-
-  it.each(['chat', 'work', undefined] as const)('keeps actionable pauses on the %s branch', async (sessionMode) => {
-    for (const pauseReason of [
-      { type: 'user_exec_approval', command: 'ls' },
-      { type: 'tool_call_limit', maxToolCalls: 25 },
-      undefined,
-    ] as const) {
-      const state = await readLocks({
-        id: 'paused',
-        name: 'Paused',
-        messages: [
-          message({
-            generating: false,
-            contentParts: [
-              { type: 'tool-call', toolCallId: 'call', toolName: 'sandbox_bash', state: 'paused', pauseReason },
-            ],
-          }),
-        ],
-      })
-      expect(getSessionActionGate('switch-fork', state, { sessionMode })).toEqual(
-        pauseReason ? { allowed: false, reason: 'awaiting-pause-decision' } : { allowed: true }
-      )
-      expect(getSessionActionGate('switch-fork', { ...state, compactionRunning: true }, { sessionMode })).toEqual({
-        allowed: false,
-        reason: 'compaction',
-      })
-    }
   })
 
   it('blocks submission during the placeholder window, compaction, and a pending pause decision', () => {

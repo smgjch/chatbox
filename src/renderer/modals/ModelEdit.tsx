@@ -1,9 +1,3 @@
-import NiceModal, { useModal } from '@ebay/nice-modal-react'
-import { Button, Checkbox, Flex, Loader, NumberInput, Stack, Text, TextInput, UnstyledButton } from '@mantine/core'
-import { TestId } from '@shared/automation/testids'
-import type { ProviderModelInfo } from '@shared/types'
-import { useEffect, useState } from 'react'
-import { useTranslation } from 'react-i18next'
 import { createModelDependencies } from '@/adapters'
 import { AdaptiveSelect } from '@/components/AdaptiveSelect'
 import { AdaptiveModal } from '@/components/common/AdaptiveModal'
@@ -11,6 +5,14 @@ import { AppTooltip as Tooltip } from '@/components/ui/tooltip'
 import platform from '@/platform'
 import { settingsStore } from '@/stores/settingsStore'
 import { type ModelTestState, testModelCapabilities } from '@/utils/model-tester'
+import NiceModal, { useModal } from '@ebay/nice-modal-react'
+import { Button, Checkbox, Flex, Loader, NumberInput, Stack, Text, TextInput, UnstyledButton } from '@mantine/core'
+import { TestId } from '@shared/automation/testids'
+import { SystemProviders } from '@shared/defaults'
+import type { ProviderModelInfo } from '@shared/types'
+import { ModelProviderType } from '@shared/types'
+import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 const ModelEdit = NiceModal.create((props: { model?: ProviderModelInfo; providerId?: string }) => {
   const modal = useModal()
@@ -23,16 +25,18 @@ const ModelEdit = NiceModal.create((props: { model?: ProviderModelInfo; provider
   const [type, setType] = useState<ProviderModelInfo['type']>(props.model?.type || 'chat')
   const [contextWindow, setContextWindow] = useState<number | undefined>(props.model?.contextWindow)
   const [maxOutput, setMaxOutput] = useState<number | undefined>(props.model?.maxOutput)
+  const [thinkingMode, setThinkingMode] = useState<ProviderModelInfo['thinkingMode']>(
+    props.model?.thinkingMode ?? 'auto'
+  )
+  const provider = [...SystemProviders(), ...(settingsStore.getState().customProviders ?? [])].find(
+    (p) => p.id === props.providerId
+  )
+  const isGemini = provider?.type === ModelProviderType.Gemini || props.model?.apiStyle === 'google'
   const [testState, setTestState] = useState<ModelTestState>({
     testing: false,
   })
 
-  const typeOptions = [
-    { value: 'chat', label: t('Chat')?.toString() ?? 'Chat' },
-    { value: 'image', label: t('Image')?.toString() ?? 'Image' },
-    { value: 'embedding', label: t('Embedding')?.toString() ?? 'Embedding' },
-    { value: 'rerank', label: t('Rerank')?.toString() ?? 'Rerank' },
-  ]
+  const typeOptions = [{ value: 'chat', label: t('Chat')?.toString() ?? 'Chat' }]
 
   useEffect(() => {
     setModelId(props.model?.modelId || '')
@@ -41,6 +45,7 @@ const ModelEdit = NiceModal.create((props: { model?: ProviderModelInfo; provider
     setType(props.model?.type || 'chat')
     setContextWindow(props.model?.contextWindow)
     setMaxOutput(props.model?.maxOutput)
+    setThinkingMode(props.model?.thinkingMode ?? 'auto')
     setTestState({ testing: false })
   }, [props])
 
@@ -77,12 +82,14 @@ const ModelEdit = NiceModal.create((props: { model?: ProviderModelInfo; provider
 
   const handleSave = () => {
     modal.resolve({
+      ...props.model,
       modelId,
       type,
       nickname: nickname || undefined,
       capabilities,
       contextWindow,
       maxOutput,
+      thinkingMode,
     })
     modal.hide()
   }
@@ -176,25 +183,28 @@ const ModelEdit = NiceModal.create((props: { model?: ProviderModelInfo; provider
                   }
                 }}
               />
-              <Checkbox
-                data-testid={TestId.settings.providerModelEditorToolUse}
-                flex={1}
-                label={t('Tool use')}
-                checked={capabilities?.includes('tool_use')}
-                onChange={(e) => {
-                  const checked = e.currentTarget.checked
-                  if (checked) {
-                    setCapabilities([...(capabilities || []), 'tool_use'])
-                  } else {
-                    setCapabilities([...(capabilities?.filter((c) => c !== 'tool_use') || [])])
-                  }
-                }}
-              />
             </Flex>
           </Stack>
         )}
 
         {/* Context Window and Max Output */}
+        {isGemini && (
+          <AdaptiveSelect
+            label={t('Gemini thinking parameters')}
+            description={t(
+              'Use thinkingLevel for Gemini 3 and newer, or thinkingBudget for Gemini 2.5. Custom model names are supported.'
+            )}
+            value={thinkingMode}
+            allowDeselect={false}
+            data={[
+              { value: 'auto', label: t('Auto') },
+              { value: 'level', label: 'thinkingLevel (low / medium / high)' },
+              { value: 'budget', label: 'thinkingBudget' },
+              { value: 'none', label: t('Disabled') },
+            ]}
+            onChange={(value) => setThinkingMode(value as ProviderModelInfo['thinkingMode'])}
+          />
+        )}
         <Stack gap="xs">
           <Text fw="600">{t('Advanced Settings')}</Text>
           <Flex gap="md">

@@ -1,3 +1,19 @@
+import { BrowserAttachmentAdapter } from '@/adapters/BrowserAttachmentAdapter'
+import { CapacitorAttachmentAdapter } from '@/adapters/CapacitorAttachmentAdapter'
+import { DesktopAttachmentAdapter } from '@/adapters/DesktopAttachmentAdapter'
+import { rendererApplication } from '@/app/renderer-application'
+import { getLogger } from '@/lib/utils'
+import { PREVIEW_LINES } from '@/packages/context-management/attachment-payload'
+import * as localParser from '@/packages/local-parser'
+
+import { estimateTokens } from '@/packages/token'
+import platform from '@/platform'
+import storage from '@/storage'
+import { nonSessionStorageKey } from '@/storage/non-session-key'
+import { StorageKeyGenerator } from '@/storage/StoreStorage'
+
+import { getChatboxAIParserAccountError } from '@/utils/file-parse-error'
+import { reportError } from '@/utils/sentry'
 import {
   type AttachmentAnalysis,
   type AttachmentPreparationOptions,
@@ -7,44 +23,14 @@ import {
 } from '@chatbox/core/application/attachments'
 import { projectSessionMeta, type SessionSearchOptions, SessionSearchService } from '@chatbox/core/application/session'
 import { isActionAvailableInMode, resolveSessionMode } from '@chatbox/core/session/mode-policy'
-import { isSessionAttachmentRagSupportedFilePath, isSupportedFile, isTextFilePath } from '@shared/file-extensions'
+import { isSessionAttachmentRagSupportedFilePath } from '@shared/file-extensions'
 import {
   CHATBOX_AI_PARSER_LICENSE_KEY_REQUIRED_ERROR,
   EMPTY_ATTACHMENT_CONTENT_ERROR,
   NON_RECOVERABLE_LOCAL_PARSER_ERROR_CODES,
 } from '@shared/file-parse-errors'
-import { ChatboxAIAPIError } from '@shared/models/errors'
-import {
-  DEEPSEEK_OCR_MAX_FILE_SIZE,
-  getDeepSeekParserErrorCode,
-  isDeepSeekOcrFile,
-  recognizeDocumentWithDeepSeek,
-} from '@shared/services/deepseek-ocr'
-import {
-  ModelProviderEnum,
-  type SessionHeader,
-  type SessionMeta,
-  type SessionSettings,
-  type Settings,
-} from '@shared/types'
+import { type SessionHeader, type SessionMeta, type SessionSettings, type Settings } from '@shared/types'
 import type { DocumentParserConfig } from '@shared/types/settings'
-import { BrowserAttachmentAdapter } from '@/adapters/BrowserAttachmentAdapter'
-import { CapacitorAttachmentAdapter } from '@/adapters/CapacitorAttachmentAdapter'
-import { DesktopAttachmentAdapter } from '@/adapters/DesktopAttachmentAdapter'
-import { rendererApplication } from '@/app/renderer-application'
-import { getLogger } from '@/lib/utils'
-import { PREVIEW_LINES } from '@/packages/context-management/attachment-payload'
-import * as localParser from '@/packages/local-parser'
-import { prepareLocalWorkAttachment } from '@/packages/mobile-work-mode/attachments'
-import * as remote from '@/packages/remote'
-import { estimateTokens } from '@/packages/token'
-import platform from '@/platform'
-import storage from '@/storage'
-import { nonSessionStorageKey } from '@/storage/non-session-key'
-import { StorageKeyGenerator } from '@/storage/StoreStorage'
-import { authInfoStore } from '@/stores/authInfoStore'
-import { getChatboxAIParserAccountError } from '@/utils/file-parse-error'
-import { reportError } from '@/utils/sentry'
 import * as defaults from '../../shared/defaults'
 import { SESSION_ATTACHMENT_RAG_LOG_PREFIX } from '../../shared/session-attachment-rag/logging'
 import { createMessage, type Message, SessionSettingsSchema, TOKEN_CACHE_KEYS } from '../../shared/types'
@@ -54,7 +40,7 @@ import { lastUsedModelStore } from './lastUsedModelStore'
 import { getSessionAgentModeEntry } from './session/agent-mode'
 import { SESSION_ATTACHMENT_RAG_LARGE_ATTACHMENT_WARNING } from './sessionAttachmentRagErrors'
 import * as settingActions from './settingActions'
-import { getPlatformDefaultDocumentParser, settingsStore } from './settingsStore'
+import { settingsStore } from './settingsStore'
 
 export {
   isSessionAttachmentRagAuthError,
@@ -278,8 +264,7 @@ export function computePreviewMetadata(
 }
 
 function getEffectiveDocumentParserConfig(): DocumentParserConfig {
-  const globalConfig = settingsStore.getState().extension?.documentParser
-  return globalConfig ?? getPlatformDefaultDocumentParser()
+  return { type: 'local' }
 }
 
 function hasParsedText(content: string): boolean {
@@ -291,78 +276,8 @@ type LocalParserFallbackOptions = {
   forceChatboxAIFallback?: boolean
 }
 
-function canFallbackToChatboxAI(): boolean {
-  return Boolean(settingActions.getLicenseKey())
-}
-
-function isChatboxAIFallbackAllowed(options: LocalParserFallbackOptions): boolean {
-  return Boolean(options.forceChatboxAIFallback) || options.allowChatboxAIFallback !== false
-}
-
-function requireChatboxAIParserLicense(): never {
-  throw new Error(CHATBOX_AI_PARSER_LICENSE_KEY_REQUIRED_ERROR)
-}
-
-function hasUsableSessionAttachmentRagLicense(): boolean {
-  const settings = settingsStore.getState()
-  if (!settings.licenseKey) {
-    return false
-  }
-  if (settings.licenseActivationMethod === 'login') {
-    return !!authInfoStore.getState().getTokens()
-  }
-  return true
-}
-
-function hasDefaultSessionAttachmentEmbeddingModel(): boolean {
-  const defaultEmbeddingModel = settingsStore.getState().defaultEmbeddingModel
-  return Boolean(defaultEmbeddingModel?.provider && defaultEmbeddingModel.model)
-}
-
-function getDefaultSessionAttachmentEmbeddingModelLabel(): string {
-  const defaultEmbeddingModel = settingsStore.getState().defaultEmbeddingModel
-  return defaultEmbeddingModel?.provider && defaultEmbeddingModel.model
-    ? `${defaultEmbeddingModel.provider}:${defaultEmbeddingModel.model}`
-    : 'none'
-}
-
-async function canUseSessionAttachmentRag(): Promise<boolean> {
-  const licenseKey = settingActions.getLicenseKey() || ''
-  const hasUsableLicense = hasUsableSessionAttachmentRagLicense()
-  const hasDefaultEmbeddingModel = hasDefaultSessionAttachmentEmbeddingModel()
-  const capabilityCacheKey = `${licenseKey}:${hasUsableLicense ? 'active' : 'inactive'}:${
-    hasDefaultEmbeddingModel ? 'default-embedding' : 'no-default-embedding'
-  }`
-  if (sessionRagCapabilityCache?.key === capabilityCacheKey) {
-    log.debug(
-      `${SESSION_ATTACHMENT_RAG_LOG_PREFIX} Capability cache hit: embedding=${sessionRagCapabilityCache.value}, hasLicense=${Boolean(licenseKey)}`
-    )
-    return sessionRagCapabilityCache.value
-  }
-
-  if (hasDefaultEmbeddingModel) {
-    log.debug(
-      `${SESSION_ATTACHMENT_RAG_LOG_PREFIX} Capability enabled by default embedding model, hasLicense=${Boolean(licenseKey)}, platform=${platform.type}, embeddingModel=${getDefaultSessionAttachmentEmbeddingModelLabel()}`
-    )
-    sessionRagCapabilityCache = { key: capabilityCacheKey, value: true }
-    return true
-  }
-
-  if (!hasUsableLicense) {
-    log.debug(
-      `${SESSION_ATTACHMENT_RAG_LOG_PREFIX} Capability skipped: missing active Chatbox license, hasLicense=${Boolean(licenseKey)}, method=${settingsStore.getState().licenseActivationMethod ?? 'none'}, platform=${platform.type}`
-    )
-    sessionRagCapabilityCache = { key: capabilityCacheKey, value: false }
-    return false
-  }
-
-  const value = !!(await remote.getSessionRagConfig({ licenseKey: licenseKey || undefined }).catch(() => undefined))
-    ?.capabilities?.session_attachment_embedding
-  log.debug(
-    `${SESSION_ATTACHMENT_RAG_LOG_PREFIX} Capability fetched: embedding=${value}, hasLicense=${Boolean(licenseKey)}, platform=${platform.type}`
-  )
-  sessionRagCapabilityCache = { key: capabilityCacheKey, value }
-  return value
+export async function canUseSessionAttachmentRag(): Promise<boolean> {
+  return false
 }
 
 /**
@@ -387,91 +302,22 @@ async function parseFileWithLocalParser(file: File): Promise<ParsedAttachmentCon
   }
 }
 
-async function fallbackToChatboxAIParser(
-  file: File,
-  reason: 'local_parser_failed' | 'empty_content'
-): Promise<ParsedAttachmentContent> {
-  log.warn(`Falling back to Chatbox AI parser for "${file.name}" due to ${reason}`)
-
-  try {
-    return await parseFileWithChatboxAI(file)
-  } catch (error) {
-    log.error(`Chatbox AI fallback parsing failed for "${file.name}":`, error)
-    if (isStorageQuotaError(error)) {
-      throw new FilePreprocessFailure(FILE_STORAGE_QUOTA_EXCEEDED_ERROR, 'cloud_parse', error)
-    }
-    if (error instanceof ChatboxAIAPIError && getChatboxAIParserAccountError(error.detail.name)) {
-      throw new Error(error.detail.name)
-    }
-    if (
-      error instanceof Error &&
-      (error.message === EMPTY_ATTACHMENT_CONTENT_ERROR ||
-        error.message === CHATBOX_AI_PARSER_LICENSE_KEY_REQUIRED_ERROR ||
-        error.message === 'license_key_required')
-    ) {
-      throw error
-    }
-    throw new Error('chatbox_ai_parser_failed')
-  }
-}
-
-function shouldFallbackToChatboxAI(options: LocalParserFallbackOptions): boolean {
-  return isChatboxAIFallbackAllowed(options) && canFallbackToChatboxAI()
-}
-
-async function parseFileWithLocalFallback(
-  file: File,
-  options: LocalParserFallbackOptions = {}
-): Promise<ParsedAttachmentContent> {
+async function parseFileWithLocalFallback(file: File): Promise<ParsedAttachmentContent> {
   try {
     const result = await parseFileWithLocalParser(file)
-    if (!hasParsedText(result.content)) {
-      if (shouldFallbackToChatboxAI(options)) {
-        return await fallbackToChatboxAIParser(file, 'empty_content')
-      }
-      if (isChatboxAIFallbackAllowed(options)) {
-        requireChatboxAIParserLicense()
-      }
+    if (!hasParsedText(result.content))
       throw new FilePreprocessFailure(
         EMPTY_ATTACHMENT_CONTENT_ERROR,
         'local_parse',
         new Error('Local parser returned empty content')
       )
-    }
     return result
   } catch (error) {
-    log.error(`Local parsing failed for "${file.name}":`, error)
-
-    if (error instanceof FilePreprocessFailure) {
-      throw error
-    }
-
-    if (error instanceof Error && error.message === CHATBOX_AI_PARSER_LICENSE_KEY_REQUIRED_ERROR) {
-      throw error
-    }
-
-    // Encrypted or oversized PDFs cannot be recovered by the cloud parser either,
-    // so surface the specific error directly instead of wasting a fallback upload.
-    const errorCode = error instanceof Error ? error.message : ''
-    if (NON_RECOVERABLE_LOCAL_PARSER_ERROR_CODES.has(errorCode)) {
-      throw error
-    }
-
-    if (isStorageQuotaError(error)) {
+    if (error instanceof FilePreprocessFailure) throw error
+    const code = error instanceof Error ? error.message : ''
+    if (NON_RECOVERABLE_LOCAL_PARSER_ERROR_CODES.has(code)) throw error
+    if (isStorageQuotaError(error))
       throw new FilePreprocessFailure(FILE_STORAGE_QUOTA_EXCEEDED_ERROR, 'local_parse', error)
-    }
-
-    if (shouldFallbackToChatboxAI(options)) {
-      return await fallbackToChatboxAIParser(file, 'local_parser_failed')
-    }
-
-    if (isChatboxAIFallbackAllowed(options)) {
-      requireChatboxAIParserLicense()
-    }
-
-    if (errorCode === 'local_parser_failed') {
-      throw error
-    }
     throw new FilePreprocessFailure('local_parser_failed', 'local_parse', error)
   }
 }
@@ -479,84 +325,14 @@ async function parseFileWithLocalFallback(
 /**
  * Parse file using Chatbox AI cloud service
  */
-async function parseFileWithChatboxAI(file: File): Promise<ParsedAttachmentContent> {
-  const licenseKey = settingActions.getLicenseKey()
-  if (!licenseKey) {
-    requireChatboxAIParserLicense()
-  }
-  const uploadedKey = await remote.uploadAndCreateUserFile(licenseKey, file)
-
-  // Get uploaded file content
-  const content = (await storage.getBlob(uploadedKey).catch(() => '')) || ''
-
-  try {
-    if (!hasParsedText(content)) {
-      throw new Error(EMPTY_ATTACHMENT_CONTENT_ERROR)
-    }
-    return { content, tokenCountMap: {}, parserType: 'chatbox-ai' }
-  } finally {
-    await storage.delBlob(uploadedKey).catch(() => undefined)
-  }
-}
 
 /**
  * Parse file using MinerU service (Desktop only)
  */
-async function parseFileWithMineruService(file: File, apiToken: string): Promise<ParsedAttachmentContent> {
-  // Check if platform supports MinerU parsing
-  if (!platform.parseFileWithMineru) {
-    throw new Error('third_party_parser_not_supported_in_chat')
-  }
-
-  // Call platform method to parse file
-  const result = await platform.parseFileWithMineru(file, apiToken)
-
-  // Handle cancellation - throw a special error that will be caught silently
-  if (result.cancelled) {
-    throw new Error('parsing_cancelled')
-  }
-
-  if (!result.success || !result.content || !hasParsedText(result.content)) {
-    throw new Error(EMPTY_ATTACHMENT_CONTENT_ERROR)
-  }
-
-  return { content: result.content, tokenCountMap: {}, parserType: 'mineru' }
-}
 
 /**
  * Parse file using DeepSeek OCR, authenticated with the DeepSeek model provider API key
  */
-async function parseFileWithDeepSeek(file: File): Promise<ParsedAttachmentContent> {
-  const apiKey = settingsStore.getState().providers?.[ModelProviderEnum.DeepSeek]?.apiKey?.trim()
-  if (!apiKey) {
-    throw new Error('deepseek_parser_api_key_required')
-  }
-  if (file.size > DEEPSEEK_OCR_MAX_FILE_SIZE) {
-    throw new Error('deepseek_parser_file_too_large')
-  }
-  let result: Awaited<ReturnType<typeof recognizeDocumentWithDeepSeek>>
-  try {
-    result = await recognizeDocumentWithDeepSeek({
-      apiKey,
-      fileName: file.name,
-      mimeType: file.type,
-      data: new Uint8Array(await file.arrayBuffer()),
-      fetch: (url, init) => fetch(url, init),
-    })
-  } catch (error) {
-    log.error(`DeepSeek parsing failed for "${file.name}":`, error)
-    throw new Error(getDeepSeekParserErrorCode(error))
-  }
-  if (result.truncatedPages.length > 0) {
-    log.warn(
-      `DeepSeek OCR output was cut off for "${file.name}" on page(s) ${result.truncatedPages.map((index) => index + 1).join(', ')}`
-    )
-  }
-  if (!hasParsedText(result.text)) {
-    throw new Error(EMPTY_ATTACHMENT_CONTENT_ERROR)
-  }
-  return { content: result.text, tokenCountMap: {}, parserType: 'deepseek' }
-}
 
 function createPickedAssetAdapter(): BrowserAttachmentAdapter {
   if (platform.type === 'mobile') {
@@ -572,67 +348,9 @@ const pickedAssetAdapter = createPickedAssetAdapter()
 
 async function parsePickedAsset(
   asset: PickedAsset,
-  options: AttachmentPreparationOptions
+  _options: AttachmentPreparationOptions
 ): Promise<ParsedAttachmentContent> {
-  const file = pickedAssetAdapter.getFile(asset)
-  const isTextFile = isTextFilePath(asset.name)
-
-  // In agent mode, skip content parsing when no parser can produce text. The
-  // shared service has already stored the raw bytes for sandbox execution.
-  if (
-    options.agentMode &&
-    !isTextFile &&
-    (!isSupportedFile(asset.name) || getEffectiveDocumentParserConfig().type === 'none')
-  ) {
-    log.debug(`Agent mode: skipping content parsing for sandbox-only file: ${asset.name}`)
-    return {
-      content: `[File: ${asset.name} (${(asset.size / 1024).toFixed(1)} KB)]`,
-      tokenCountMap: {},
-      parserType: 'sandbox-raw',
-      skipAnalysisAndMetadata: true,
-    }
-  }
-
-  if (isTextFile) {
-    log.debug(`Text file detected, using local parser: ${asset.name}`)
-    return parseFileWithLocalFallback(file, {
-      allowChatboxAIFallback: options.source !== 'pasted-text',
-    })
-  }
-
-  const parserConfig = getEffectiveDocumentParserConfig()
-  log.debug(`Using document parser: ${parserConfig.type} for file: ${asset.name}`)
-  switch (parserConfig.type) {
-    case 'none':
-      throw new Error('document_parser_not_configured')
-    case 'local':
-      return parseFileWithLocalFallback(file)
-    case 'chatbox-ai':
-      return parseFileWithLocalFallback(file, { forceChatboxAIFallback: true })
-    case 'mineru': {
-      const apiToken = parserConfig.mineru?.apiToken
-      if (!apiToken) {
-        throw new Error('mineru_api_token_required')
-      }
-      try {
-        return await parseFileWithMineruService(file, apiToken)
-      } catch (error) {
-        log.error(`MinerU parsing failed for "${asset.name}":`, error)
-        if (
-          error instanceof Error &&
-          (error.message === EMPTY_ATTACHMENT_CONTENT_ERROR || error.message.startsWith('third_party_parser'))
-        ) {
-          throw error
-        }
-        throw new Error('third_party_parser_failed')
-      }
-    }
-    case 'deepseek':
-      // DeepSeek OCR reads PDF, Word, PowerPoint and images; other formats keep the local parser.
-      return isDeepSeekOcrFile(asset.name) ? parseFileWithDeepSeek(file) : parseFileWithLocalFallback(file)
-    default:
-      throw new Error('document_parser_not_configured')
-  }
+  return parseFileWithLocalFallback(pickedAssetAdapter.getFile(asset))
 }
 
 async function analyzePickedAsset(input: {
@@ -714,14 +432,7 @@ async function prepareFileAttachmentOnce(
   options?: AttachmentPreparationOptions
 ): Promise<AttachmentPreparationResult> {
   try {
-    const result =
-      platform.type === 'mobile' && options?.agentMode
-        ? await prepareLocalWorkAttachment(
-            asset,
-            () => pickedAssetAdapter.readDataUrl(asset),
-            (key, value) => storage.setBlob(key, value)
-          )
-        : await attachmentService.prepareOrThrow(asset, options)
+    const result = await attachmentService.prepareOrThrow(asset, { ...options, agentMode: false })
     const { asset: _preparedAsset, ...prepared } = result
     return { file, ...prepared }
   } catch (error) {
@@ -860,39 +571,7 @@ async function preprocessLinkAccepted(
       }
     }
 
-    if (isPro) {
-      // ChatboxAI 方案：使用远程解析
-      const licenseKey = settingActions.getLicenseKey()
-      const parsed = await remote.parseUserLinkPro({ licenseKey: licenseKey || '', url })
-
-      // 获取解析后的内容
-      const content = (await storage.getBlob(parsed.storageKey).catch(() => '')) || ''
-
-      // 将内容存储到唯一键下
-      if (content) {
-        await storage.setBlob(uniqKey, content)
-      }
-
-      // Calculate token counts including preview metadata
-      const { lineCount, byteLength, tokenCountMap } = content
-        ? computePreviewMetadata(content)
-        : { lineCount: undefined, byteLength: undefined, tokenCountMap: {} }
-
-      // Store token map for future use
-      if (content) {
-        await storage.setItem(nonSessionStorageKey(`${uniqKey}_tokenMap`), tokenCountMap)
-      }
-
-      return {
-        url,
-        title: parsed.title,
-        content,
-        storageKey: uniqKey,
-        tokenCountMap,
-        lineCount,
-        byteLength,
-      }
-    } else {
+    {
       // 本地方案：解析链接内容
       const { key, title } = await localParser.parseUrl(url)
       const content = (await storage.getBlob(key).catch(() => '')) || ''

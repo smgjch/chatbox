@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 
+import { resolveMessageErrorPresentation } from '@/components/chat/message-error-presentation'
+import { InMemorySessionRepository } from '@chatbox/core/testing'
 import { ChatboxAIAPIError, MESSAGE_ERROR_CODES, OCRError } from '@shared/models/errors'
 import type { Message, Session, SessionSettings, Settings } from '@shared/types'
-import { InMemorySessionRepository } from '@chatbox/core/testing'
 import { beforeEach, describe, expect, test, vi } from 'vitest'
-import { resolveMessageErrorPresentation } from '@/components/chat/message-error-presentation'
 
 const { reportErrorMock, trackEventMock } = vi.hoisted(() => ({
   reportErrorMock: vi.fn(),
@@ -46,9 +46,9 @@ describe('trackGenerateEvent', () => {
     expect(trackEventMock).toHaveBeenCalledWith(
       'generate',
       expect.objectContaining({
-        agent_mode: 'on',
-        agent_mode_active: 'true',
-        agent_mode_entry_source: 'locked_session',
+        agent_mode: 'off',
+        agent_mode_active: 'false',
+        agent_mode_entry_source: 'none',
       })
     )
   })

@@ -238,7 +238,8 @@ describe('custom provider network compatibility', () => {
     expect(apiRequest).toHaveBeenCalledWith(
       expect.objectContaining({
         method: 'GET',
-        url: 'http://192.168.1.10:8000/v1beta/models?key=test-key',
+        url: 'http://192.168.1.10:8000/v1beta/models',
+        headers: { 'x-goog-api-key': 'test-key' },
         useProxy: true,
       })
     )

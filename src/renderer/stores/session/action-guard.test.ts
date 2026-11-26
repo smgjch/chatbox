@@ -118,25 +118,6 @@ describe('guardSessionAction', () => {
     expect(toastMock).toHaveBeenCalledWith('Wait for the current replies to finish', 2500)
   })
 
-  it('injects the session mode: chat may switch forks mid-generation, work mode stays locked', async () => {
-    generationRuntimeStore.start('session-1', 'reply')
-    const streamingMessages = [message({ id: 'user', role: 'user' }), message({ id: 'reply', generating: true })]
-    getSessionMock.mockResolvedValue(session({ messages: streamingMessages }))
-
-    await expect(guardSessionAction('session-1', 'switch-fork')).resolves.toBe(true)
-    expect(toastMock).not.toHaveBeenCalled()
-
-    getSessionMock.mockResolvedValue(
-      session({
-        messages: streamingMessages,
-        settings: { agentMode: { value: 'on', locked: true, lockReason: 'message_sent' } },
-      })
-    )
-
-    await expect(guardSessionAction('session-1', 'switch-fork')).resolves.toBe(false)
-    expect(toastMock).toHaveBeenCalledWith('Wait for the current replies to finish', 2500)
-  })
-
   it('blocks fork switching while compaction runs for this session', async () => {
     getSessionMock.mockResolvedValue(session())
     setCompactionUIState('session-1', { status: 'running' })

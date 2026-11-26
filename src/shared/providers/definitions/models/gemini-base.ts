@@ -1,14 +1,11 @@
-import type { GoogleProvider, GoogleLanguageModelOptions } from '@ai-sdk/google'
+import type { GoogleLanguageModelOptions, GoogleProvider } from '@ai-sdk/google'
 import type { LanguageModelV4 } from '@ai-sdk/provider'
-import { generateText } from 'ai'
 import AbstractAISDKModel, { type CallSettings } from '../../../models/abstract-ai-sdk'
 import { ApiError } from '../../../models/errors'
 import type { CallChatCompletionOptions } from '../../../models/types'
 import type { ProviderModelInfo } from '../../../types'
 import type { ModelDependencies } from '../../../types/adapters'
-import { normalizeGoogleThinkingConfig } from '../../../utils/google-thinking'
-import { buildGeminiImageConfig } from '../gemini-types'
-import { isGeminiImageModel } from '../image-models'
+import { getGoogleThinkingMode, normalizeGoogleThinkingConfig } from '../../../utils/google-thinking'
 
 export interface GeminiModelOptions {
   model: ProviderModelInfo
@@ -28,6 +25,10 @@ export abstract class GeminiModel<TOptions extends GeminiModelOptions> extends A
   }
 
   protected abstract getProvider(options?: CallChatCompletionOptions): GoogleProvider
+
+  public isSupportReasoning() {
+    return getGoogleThinkingMode(this.options.model.modelId, this.options.model.thinkingMode) !== 'none'
+  }
 
   isSupportSystemMessage() {
     return ![
@@ -56,7 +57,11 @@ export abstract class GeminiModel<TOptions extends GeminiModelOptions> extends A
     }
     const { thinkingConfig, ...googleOptions } = options.providerOptions?.google || {}
     if (isModelSupportThinking && thinkingConfig) {
-      const normalizedThinkingConfig = normalizeGoogleThinkingConfig(this.options.model.modelId, thinkingConfig)
+      const normalizedThinkingConfig = normalizeGoogleThinkingConfig(
+        this.options.model.modelId,
+        thinkingConfig,
+        this.options.model.thinkingMode
+      )
       providerParams = {
         ...providerParams,
         ...googleOptions,
@@ -74,64 +79,8 @@ export abstract class GeminiModel<TOptions extends GeminiModelOptions> extends A
         } satisfies GoogleLanguageModelOptions,
       },
     }
-    if (isGeminiImageModel(this.options.model.modelId)) {
-      settings.providerOptions = {
-        google: {
-          ...providerParams,
-          responseModalities: ['TEXT', 'IMAGE'],
-        } satisfies GoogleLanguageModelOptions,
-      }
-    }
+
     return settings
-  }
-
-  public async paint(
-    params: {
-      prompt: string
-      images?: { imageUrl: string }[]
-      num: number
-      aspectRatio?: string
-    },
-    signal?: AbortSignal,
-    callback?: (picBase64: string) => void | Promise<void>
-  ): Promise<string[]> {
-    if (!isGeminiImageModel(this.options.model.modelId)) {
-      throw new ApiError('This Gemini model does not support image generation')
-    }
-
-    const provider = this.getProvider()
-    const model = provider.chat(this.options.model.modelId)
-
-    const results: string[] = []
-    for (let i = 0; i < params.num; i++) {
-      const providerOptions: GoogleLanguageModelOptions = {
-        responseModalities: ['TEXT', 'IMAGE'],
-      }
-      const imageConfig = buildGeminiImageConfig(params.aspectRatio)
-      if (imageConfig) {
-        providerOptions.imageConfig = imageConfig
-      }
-
-      const result = await generateText({
-        model,
-        messages: [{ role: 'user', content: params.prompt }],
-        abortSignal: signal,
-        providerOptions: {
-          google: providerOptions,
-        },
-        // Image generation is billable; network-error retries could double-charge.
-        maxRetries: 0,
-      })
-
-      for (const file of result.files) {
-        if (file.mediaType?.startsWith('image/') && file.base64) {
-          const dataUrl = `data:${file.mediaType};base64,${file.base64}`
-          results.push(dataUrl)
-          await callback?.(dataUrl)
-        }
-      }
-    }
-    return results
   }
 
   protected async fetchModels(

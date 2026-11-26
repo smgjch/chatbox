@@ -54,6 +54,11 @@ export function buildImportedProviderSettingsUpdate(params: {
     apiPath,
     apiKey,
     ...credentialFields,
+    ...Object.fromEntries(
+      ['geminiAuthMode', 'geminiIncludeModel', 'geminiStreaming', 'useProxy']
+        .filter((key) => importedConfig[key as keyof typeof importedConfig] !== undefined)
+        .map((key) => [key, importedConfig[key as keyof typeof importedConfig]])
+    ),
     models: uniqueModels,
   }
 

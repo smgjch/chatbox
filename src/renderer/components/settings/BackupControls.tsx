@@ -1,12 +1,12 @@
-import { inspectBackup } from '@chatbox/core/backup-import'
+import { rendererBackupService } from '@/app/renderer-backup'
 import type { BackupExportFormat } from '@chatbox/core/backup-export'
+import { inspectBackup } from '@chatbox/core/backup-import'
 import { type BackupResult, type BackupSelection, getBackupImportPartialResult } from '@chatbox/core/backup-v3'
 import { isAbortError } from '@chatbox/core/utils/abort'
 import { Box, Button, Checkbox, FileButton, Radio, Stack, Text } from '@mantine/core'
 import { IconChevronDown, IconChevronRight, IconCircleCheck, IconInfoCircle } from '@tabler/icons-react'
 import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { rendererBackupService } from '@/app/renderer-backup'
 import { type BackupConversationOption, BackupConversationSelector } from './BackupConversationSelector'
 import { BackupDialog } from './BackupDialog'
 import classes from './BackupDialog.module.css'
@@ -24,7 +24,7 @@ export function BackupControls() {
   const [selection, setSelection] = useState<BackupSelection>({
     sessions: true,
     settings: true,
-    copilots: true,
+    copilots: false,
     credentials: false,
   })
   const [selectedIds, setSelectedIds] = useState<Set<string> | null>(null)
@@ -221,7 +221,7 @@ export function BackupControls() {
         <SettingRow
           id="export-data"
           label={t('Export Data')}
-          description={t('Save settings, conversations and copilots to a backup file.')}
+          description={t('Save settings and conversations to a backup file.')}
           control={
             <Button size="xs" onClick={() => setExportOpened(true)}>
               {t('Export Data')}
@@ -383,14 +383,7 @@ export function BackupControls() {
                       }))
                     }}
                   />
-                  <Checkbox
-                    label={t('Copilots')}
-                    checked={selection.copilots}
-                    onChange={(event) => {
-                      const checked = event.currentTarget.checked
-                      setSelection((current) => ({ ...current, copilots: checked }))
-                    }}
-                  />
+
                   <Checkbox
                     label={t('Include credentials')}
                     checked={selection.credentials}
@@ -492,7 +485,7 @@ export function BackupControls() {
             </Text>
             <Text size="sm">
               {t(
-                'Conversations and resources with matching IDs will be replaced. Included settings and copilots will replace local values.'
+                'Conversations and resources with matching IDs will be replaced. Included settings will replace local values.'
               )}
             </Text>
             {(

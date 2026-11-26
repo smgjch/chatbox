@@ -420,3 +420,28 @@ describe.each([
     expect(compactHereItem(openMoreMenu())?.disabled).toBe(true)
   })
 })
+
+describe('chat-only message content', () => {
+  test.each(['user', 'assistant', 'system'] as const)('renders %s text inside the message body', (role) => {
+    renderMessage(reply({ role, contentParts: [{ type: 'text', text: 'Visible conversation text' }] }))
+    expect(within(screen.getByTestId(TestId.message.content)).getByText('Visible conversation text')).toBeTruthy()
+  })
+
+  test('keeps Markdown text when a legacy agent suggestion is present', () => {
+    h.settings.enableMarkdownRendering = true
+    try {
+      renderMessage(
+        reply({
+          contentParts: [
+            { type: 'agent-mode-suggestion', reason: 'Use tools' },
+            { type: 'text', text: '**Visible Markdown reply**' },
+          ],
+        })
+      )
+      expect(within(screen.getByTestId(TestId.message.content)).getByText('**Visible Markdown reply**')).toBeTruthy()
+      expect(screen.queryByText('Use Work Mode')).toBeNull()
+    } finally {
+      h.settings.enableMarkdownRendering = false
+    }
+  })
+})

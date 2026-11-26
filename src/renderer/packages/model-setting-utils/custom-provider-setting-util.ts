@@ -1,3 +1,4 @@
+import { createModelDependencies } from '@/adapters'
 import CustomClaude from '@shared/providers/definitions/models/custom-claude'
 import CustomGemini from '@shared/providers/definitions/models/custom-gemini'
 import CustomOpenAI from '@shared/providers/definitions/models/custom-openai'
@@ -10,7 +11,6 @@ import {
   type ProviderSettings,
   type SessionType,
 } from '@shared/types'
-import { createModelDependencies } from '@/adapters'
 import BaseConfig from './base-config'
 import type { ModelSettingUtil } from './interface'
 
@@ -92,6 +92,8 @@ export default class CustomProviderSettingUtil extends BaseConfig implements Mod
             model,
             temperature: 0,
             useProxy: settings.useProxy,
+            geminiAuthMode: settings.geminiAuthMode,
+            geminiIncludeModel: settings.geminiIncludeModel,
           },
           dependencies
         )

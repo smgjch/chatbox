@@ -1,33 +1,10 @@
+import { AppTooltip as Tooltip } from '@/components/ui/tooltip'
+import { useCopied } from '@/hooks/useCopied'
+import { uiStore, useUIStore } from '@/stores/uiStore'
 import { sanitizeUrl } from '@braintree/sanitize-url'
-import { useTheme } from '@mui/material'
-import katex from 'katex'
-import type { Code, Root } from 'mdast'
-import type { Math as MathNode } from 'mdast-util-math'
-import {
-  type ComponentProps,
-  type CSSProperties,
-  createContext,
-  type ElementType,
-  memo,
-  type ReactNode,
-  useCallback,
-  useContext,
-  useEffect,
-  useId,
-  useMemo,
-  useState,
-} from 'react'
-import { useTranslation } from 'react-i18next'
-import ReactMarkdown from 'react-markdown'
-import rehypeKatex from 'rehype-katex'
-import remarkBreaks from 'remark-breaks'
-import remarkGfm from 'remark-gfm'
-import remarkMath from 'remark-math'
-import * as latex from '../packages/latex'
-import { isRenderableCodeLanguage } from './Artifact'
-import 'katex/dist/katex.min.css' // `rehype-katex` does not import the CSS for you
 import NiceModal from '@ebay/nice-modal-react'
 import { ActionIcon, Flex, Loader, Stack, Text, useComputedColorScheme } from '@mantine/core'
+import { useTheme } from '@mui/material'
 import {
   IconBrandCpp,
   IconBrandCSharp,
@@ -60,23 +37,45 @@ import {
   type IconProps,
   IconTextWrap,
   IconTextWrapDisabled,
-  IconWorldUpload,
 } from '@tabler/icons-react'
 import clsx from 'clsx'
+import katex from 'katex'
+import 'katex/dist/katex.min.css' // `rehype-katex` does not import the CSS for you
+import type { Code, Root } from 'mdast'
+import type { Math as MathNode } from 'mdast-util-math'
+import {
+  type ComponentProps,
+  createContext,
+  type CSSProperties,
+  type ElementType,
+  memo,
+  type ReactNode,
+  useCallback,
+  useContext,
+  useEffect,
+  useId,
+  useMemo,
+  useState,
+} from 'react'
+import { useTranslation } from 'react-i18next'
+import ReactMarkdown from 'react-markdown'
+import rehypeKatex from 'rehype-katex'
+import remarkBreaks from 'remark-breaks'
+import remarkGfm from 'remark-gfm'
+import remarkMath from 'remark-math'
 import { visit } from 'unist-util-visit'
-import { AppTooltip as Tooltip } from '@/components/ui/tooltip'
-import { useCopied } from '@/hooks/useCopied'
-import { uiStore, useUIStore } from '@/stores/uiStore'
+import * as latex from '../packages/latex'
 import { highlight, highlightSync, preloadLanguage, type ShikiTheme } from '../packages/shiki'
+import { isRenderableCodeLanguage } from './Artifact'
 import { ScalableIcon } from './common/ScalableIcon'
-import { ImageViewer, ImageViewerItem } from './ImageViewer'
 import IconDart from './icons/Dart'
 import IconJava from './icons/Java'
+import { ImageViewer, ImageViewerItem } from './ImageViewer'
 import { MessageMermaid, SVGPreview } from './Mermaid'
-import { SandboxFileLink } from './message-parts/SandboxFileLink'
 import { parseSandboxLinkHref } from './message-parts/sandbox-link'
-import { type StreamingTextSegment, useStreamingTextSegments, wrapStreamingSegmentsInHast } from './streaming-text-fade'
+import { SandboxFileLink } from './message-parts/SandboxFileLink'
 import './shiki-code.css'
+import { type StreamingTextSegment, useStreamingTextSegments, wrapStreamingSegmentsInHast } from './streaming-text-fade'
 
 const CODE_BLOCK_COLLAPSE_LINE_THRESHOLD = 7
 type RehypePlugins = NonNullable<ComponentProps<typeof ReactMarkdown>['rehypePlugins']>
@@ -731,10 +730,6 @@ const BlockCode = memo(
     const shikiTheme: ShikiTheme = colorScheme !== 'light' ? 'one-dark-pro' : 'one-light'
     const languageName = useMemo(() => language.toUpperCase(), [language])
     const isRenderableCode = useMemo(() => isRenderableCodeLanguage(language), [language])
-    const canDeploy = useMemo(
-      () => isRenderableCode && String(children).trim().length > 0,
-      [children, isRenderableCode]
-    )
 
     const icon = useMemo(() => CodeIcons[languageName] || IconCode, [languageName])
 
@@ -759,20 +754,6 @@ const BlockCode = memo(
         }).catch(() => null)
       },
       [children, uniqueId, sessionId]
-    )
-
-    const onClickDeploy = useCallback(
-      (event: React.MouseEvent) => {
-        event.stopPropagation()
-        event.preventDefault()
-        if (!canDeploy) {
-          return
-        }
-        // 应投放侧要求改触发点为分享按钮。但注意现在语义上是 mismatch 的
-        onPreviewWebpage?.()
-        NiceModal.show('vibedrop-publish', { html: String(children), uniqueId, sessionId }).catch(() => null)
-      },
-      [canDeploy, children, uniqueId, sessionId, onPreviewWebpage]
     )
 
     const needCollapse = useMemo(
@@ -850,14 +831,6 @@ const BlockCode = memo(
                 <Tooltip label={t('Preview')} withArrow openDelay={1000}>
                   <ActionIcon variant="transparent" color="chatbox-tertiary" size={18} onClick={onClickArtifact}>
                     <IconPlayerPlayFilled size={14} />
-                  </ActionIcon>
-                </Tooltip>
-              )}
-
-              {canDeploy && (
-                <Tooltip label={t('Publish Webpage')} withArrow openDelay={1000}>
-                  <ActionIcon variant="transparent" color="chatbox-tertiary" size={18} onClick={onClickDeploy}>
-                    <IconWorldUpload size={14} />
                   </ActionIcon>
                 </Tooltip>
               )}

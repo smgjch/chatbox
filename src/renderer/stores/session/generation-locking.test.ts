@@ -67,8 +67,8 @@ vi.mock('./utils', () => ({
 vi.mock('../settingsStore', () => ({ settingsStore: { getState: () => ({ getSettings: () => ({}) }) } }))
 vi.mock('@/packages/token', () => ({ estimateTokensFromMessages: () => 0 }))
 
-import { resetSessionGenerationLocksForTests } from '@chatbox/core/generation'
 import { rendererApplication } from '@/app/renderer-application'
+import { resetSessionGenerationLocksForTests } from '@chatbox/core/generation'
 import { generate, generateMore, regenerateInNewFork, saveAndResendMessage } from './generation'
 import { type GenerationCancellationDependencies, stopAllMessageGenerations } from './generation-cancellation'
 
@@ -219,20 +219,6 @@ describe('generation entry-point locking', () => {
       expect.objectContaining({ role: 'assistant' }),
       { operationType: 'regenerate' }
     )
-  })
-
-  it('refuses Reply Again Below in work-mode sessions (mode-policy backstop)', async () => {
-    getSessionMock.mockResolvedValue({
-      id: 'session-1',
-      name: 'Session',
-      messages: [],
-      settings: { agentMode: { value: 'on', locked: true, lockReason: 'message_sent' } },
-    })
-
-    await generateMore('session-1', 'user-1')
-
-    expect(insertMessageAfterMock).not.toHaveBeenCalled()
-    expect(orchestrateGenerationMock).not.toHaveBeenCalled()
   })
 
   it('does not insert Reply Again Below while a Session Stop gate is active', async () => {

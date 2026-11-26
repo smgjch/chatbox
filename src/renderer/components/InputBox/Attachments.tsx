@@ -1,23 +1,13 @@
+import { AppTooltip as Tooltip } from '@/components/ui/tooltip'
+import { GLASS_FILL_CLASS, GLASS_TINT_CLASS } from '@/lib/glass-surface'
 import NiceModal from '@ebay/nice-modal-react'
 import { Typography } from '@mui/material'
 import { TestId } from '@shared/automation/testids'
-import { CHATBOX_AI_PARSER_LICENSE_KEY_REQUIRED_ERROR } from '@shared/file-parse-errors'
 import type { SessionAttachmentIndexingStage } from '@shared/types'
 import { IconPlayerPlay } from '@tabler/icons-react'
 import { AlertCircle, CheckCircle, Eye, Link2, Loader2, RotateCw, Trash2 } from 'lucide-react'
 import type { MouseEvent } from 'react'
 import { useTranslation } from 'react-i18next'
-import { AppTooltip as Tooltip } from '@/components/ui/tooltip'
-import { GLASS_FILL_CLASS, GLASS_TINT_CLASS } from '@/lib/glass-surface'
-import platform from '@/platform'
-import {
-  isSessionAttachmentRagAuthError,
-  isSessionAttachmentRagIndexingError,
-  SESSION_ATTACHMENT_RAG_PARSED_CONTENT_TOO_LARGE_ERROR,
-  SESSION_ATTACHMENT_RAG_REQUIRES_KNOWLEDGE_BASE_ERROR,
-  SESSION_ATTACHMENT_RAG_REQUIRES_TOOL_USE_MODEL_ERROR,
-} from '@/stores/sessionHelpers'
-import { getChatboxAIParserAccountErrorLabel, getFileParseErrorI18nKey } from '@/utils/file-parse-error'
 import MiniButton from '../common/MiniButton'
 import FileIcon from '../FileIcon'
 import { ImageInStorage } from '../Image'
@@ -28,61 +18,13 @@ export type AttachmentRecoveryAction = 'continue' | 'retry'
 function getTranslatedErrorMessage(
   errorCode: string | undefined,
   t: (key: string) => string,
-  recoveryAction?: AttachmentRecoveryAction
+  _recoveryAction?: AttachmentRecoveryAction
 ): string | undefined {
-  if (!errorCode) return undefined
-  if (isSessionAttachmentRagAuthError(errorCode)) {
-    return t('This large file needs Chatbox AI to finish indexing. Sign in to Chatbox AI, then retry this file.')
-  }
-  if (isSessionAttachmentRagIndexingError(errorCode)) {
-    return recoveryAction
-      ? `${t('Indexing failed')}. ${t(recoveryAction === 'continue' ? 'Continue' : 'Retry')}`
-      : t('Indexing failed')
-  }
-  if (errorCode === SESSION_ATTACHMENT_RAG_REQUIRES_KNOWLEDGE_BASE_ERROR) {
-    return t('This attachment is too large for chat attachments. Please upload it through Knowledge Base instead.')
-  }
-  if (errorCode === SESSION_ATTACHMENT_RAG_PARSED_CONTENT_TOO_LARGE_ERROR) {
-    return t(
-      'This document contains too much text for chat attachments. Please upload it through Knowledge Base instead.'
-    )
-  }
-  if (errorCode === SESSION_ATTACHMENT_RAG_REQUIRES_TOOL_USE_MODEL_ERROR) {
-    return t('Large file Q&A requires a model with tool use support. Switch to a compatible model or remove this file.')
-  }
-  const errorI18nKey = getFileParseErrorI18nKey(errorCode, platform.isDesktopLike)
-  if (errorI18nKey) {
-    // 使用 i18nKey 进行翻译，去掉其中的 HTML 标签以便在 Tooltip 中显示纯文本
-    const translated = t(errorI18nKey)
-    // 移除 HTML/JSX 标签，只保留纯文本
-    return translated.replace(/<[^>]*>/g, '')
-  }
-  return t('Processing failed')
+  return errorCode ? t('Could not parse this file locally. Try a text-based file or paste its contents.') : undefined
 }
 
-function getErrorStatusLabel(errorCode: string | undefined, t: (key: string) => string): string {
-  if (errorCode === SESSION_ATTACHMENT_RAG_PARSED_CONTENT_TOO_LARGE_ERROR) {
-    return t('Too much text')
-  }
-  if (errorCode === SESSION_ATTACHMENT_RAG_REQUIRES_KNOWLEDGE_BASE_ERROR) {
-    return t('Too large')
-  }
-  if (isSessionAttachmentRagAuthError(errorCode)) {
-    return t('Sign in needed')
-  }
-  if (errorCode === SESSION_ATTACHMENT_RAG_REQUIRES_TOOL_USE_MODEL_ERROR) {
-    return t('Switch model')
-  }
-  if (isSessionAttachmentRagIndexingError(errorCode)) {
-    return t('Indexing failed')
-  }
-  if (errorCode === CHATBOX_AI_PARSER_LICENSE_KEY_REQUIRED_ERROR) {
-    return t('Sign in needed')
-  }
-  if (errorCode === 'license_key_required') {
-    return t('License needed')
-  }
-  return getChatboxAIParserAccountErrorLabel(errorCode, t) ?? t('Processing failed')
+function getErrorStatusLabel(_errorCode: string | undefined, t: (key: string) => string): string {
+  return t('Processing failed')
 }
 
 export function ImageMiniCard(props: { storageKey: string; onDelete: () => void }) {
@@ -329,7 +271,7 @@ function getParserCostLabel(
 ): string | undefined {
   switch (parserType) {
     case 'local':
-      return t('No points consumed')
+      return undefined
     default:
       return undefined
   }

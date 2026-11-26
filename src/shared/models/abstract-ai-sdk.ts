@@ -3,7 +3,6 @@ import {
   APICallError,
   type EmbeddingModel,
   type FinishReason,
-  generateImage,
   type ImageModel,
   type ImageModelProviderMetadata,
   isStepCount,
@@ -449,46 +448,11 @@ export default abstract class AbstractAISDKModel implements ModelInterface {
   }
 
   public async paint(
-    params: {
-      prompt: string
-      images?: { imageUrl: string }[]
-      num: number
-      aspectRatio?: string
-    },
-    signal?: AbortSignal,
-    callback?: (picBase64: string) => void | Promise<void>
+    _params: { prompt: string; images?: { imageUrl: string }[]; num: number; aspectRatio?: string },
+    _signal?: AbortSignal,
+    _callback?: (picBase64: string) => void | Promise<void>
   ): Promise<string[]> {
-    const imageModel = this.getImageModel()
-    if (!imageModel) {
-      throw new ApiError('Provider doesnt support image generation')
-    }
-
-    const maxImagesPerRequest = this.getMaxImagesPerGenerationRequest()
-    const requestSizes = maxImagesPerRequest
-      ? Array.from({ length: Math.ceil(params.num / maxImagesPerRequest) }, (_, index) =>
-          Math.min(maxImagesPerRequest, params.num - index * maxImagesPerRequest)
-        )
-      : [params.num]
-    const dataUrls: string[] = []
-
-    for (const requestSize of requestSizes) {
-      const result = await generateImage({
-        model: imageModel,
-        prompt: this.getImageGenerationPrompt(params),
-        n: requestSize,
-        ...this.getImageGenerationOptions(params.aspectRatio),
-        abortSignal: signal,
-        // Image generation is billable; network-error retries could double-charge.
-        maxRetries: 0,
-      })
-      for (const [index, image] of result.images.entries()) {
-        const mediaType = this.getGeneratedImageMediaType(image.mediaType, index, result.providerMetadata ?? {})
-        const dataUrl = `data:${mediaType};base64,${image.base64}`
-        await callback?.(dataUrl)
-        dataUrls.push(dataUrl)
-      }
-    }
-    return dataUrls
+    throw new ApiError('Image generation is not available in this chat-only edition')
   }
 
   /**

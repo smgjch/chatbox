@@ -1,6 +1,8 @@
-import { createFileRoute } from '@tanstack/react-router'
-import KnowledgeBasePage from '@/components/knowledge-base/KnowledgeBase'
+import { createFileRoute, redirect } from '@tanstack/react-router'
 
+// Compatibility redirect for bookmarks from the full edition.
 export const Route = createFileRoute('/settings/knowledge-base')({
-  component: KnowledgeBasePage,
+  beforeLoad: () => {
+    throw redirect({ to: '/settings/provider' })
+  },
 })

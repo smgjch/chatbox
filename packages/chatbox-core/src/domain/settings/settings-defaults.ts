@@ -1,3 +1,4 @@
+import { chatOnlySettings } from '@shared/chat-only'
 import { getDefaultInterfaceColors } from '../../theme-colors'
 import { DEFAULT_ENABLED_BUILTIN_SKILL_NAMES } from '../../types/skills'
 import { type DocumentParserConfig, type Settings, Theme } from './settings-schema'
@@ -9,7 +10,7 @@ export interface SettingsHostDefaults {
 }
 
 export function getDefaultDocumentParser(host: SettingsHostDefaults): DocumentParserConfig {
-  return host.isDesktopLike ? { type: 'local' } : { type: 'chatbox-ai' }
+  return { type: 'local' }
 }
 
 /**
@@ -17,7 +18,7 @@ export function getDefaultDocumentParser(host: SettingsHostDefaults): DocumentPa
  * defaults module (which also initializes UUID/provider dependencies).
  */
 export function createDefaultSettings(): Settings {
-  return {
+  return chatOnlySettings({
     showWordCount: false,
     showTokenCount: false,
     showTokenUsed: true,
@@ -104,5 +105,5 @@ export function createDefaultSettings(): Settings {
       builtinDefaultsInitialized: true,
       appliedDefaultBuiltinSkillNames: [...DEFAULT_ENABLED_BUILTIN_SKILL_NAMES],
     },
-  }
+  })
 }

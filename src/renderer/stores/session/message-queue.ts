@@ -1,9 +1,9 @@
+import { rendererApplication } from '@/app/renderer-application'
+import { getLogger } from '@/lib/utils'
 import { withSessionGenerationLock } from '@chatbox/core/generation'
 import { createMessage, type Message } from '@shared/types'
 import { v4 as uuidv4 } from 'uuid'
 import { createStore } from 'zustand'
-import { rendererApplication } from '@/app/renderer-application'
-import { getLogger } from '@/lib/utils'
 
 const log = getLogger('message-queue')
 
@@ -276,14 +276,10 @@ function deliverQueuedMessage(sessionId: string, item: QueuedUserMessage): Promi
       if (persistedMessage) {
         setItemInFlight(sessionId, item.id, true)
         try {
-          const [{ insertMessage, modifyMessage, attachLargeFileRagMetadata }, { _generateWithoutSessionLock }] =
-            await Promise.all([import('./messages'), import('./generation')])
-          // The failed attempt may have stopped before attachment metadata was
-          // prepared; re-run it (idempotent) so retrieval files keep their ids.
-          const preparedMessage = await attachLargeFileRagMetadata(sessionId, persistedMessage)
-          if (preparedMessage !== persistedMessage) {
-            await modifyMessage(sessionId, preparedMessage, true)
-          }
+          const [{ insertMessage }, { _generateWithoutSessionLock }] = await Promise.all([
+            import('./messages'),
+            import('./generation'),
+          ])
           let assistantMessage: Message
           if (orphanPlaceholder) {
             assistantMessage = { ...orphanPlaceholder, generating: true }

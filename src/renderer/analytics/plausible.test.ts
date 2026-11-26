@@ -42,7 +42,7 @@ describe('Plausible dimensions', () => {
     expect(normalizePlausibleProvider('openai')).toBe('openai')
     expect(normalizePlausibleModel('openai', 'gpt-5.4')).toBe('gpt-5.4')
     expect(normalizePlausibleModel('openai', 'private-model-name')).toBe('custom')
-    expect(normalizePlausibleModel('chatbox-ai', 'chatboxai-runtime-model')).toBe('chatboxai-runtime-model')
+    expect(normalizePlausibleModel('chatbox-ai', 'chatboxai-runtime-model')).toBe('custom')
   })
 
   it('groups custom providers and models', () => {

@@ -16,7 +16,8 @@ const GOOGLE_THINKING_LEVELS_BY_MODEL: Array<[RegExp, GoogleThinkingLevel[]]> = 
   [/^gemini-3\.?\d*-flash(?:-|$)/i, ['low', 'medium', 'high']],
 ]
 
-export function getGoogleThinkingMode(modelId: string): GoogleThinkingMode {
+export function getGoogleThinkingMode(modelId: string, override?: GoogleThinkingMode | 'auto'): GoogleThinkingMode {
+  if (override && override !== 'auto') return override
   const id = modelId.toLowerCase().split('/').at(-1) || modelId.toLowerCase()
   // Image generation models (e.g. gemini-2.5-flash-image, gemini-3-pro-image-preview)
   // reject thinkingConfig with "Thinking is not enabled for this model".
@@ -24,7 +25,7 @@ export function getGoogleThinkingMode(modelId: string): GoogleThinkingMode {
     return 'none'
   }
 
-  if (id.startsWith('gemini-3')) {
+  if (Number(/^gemini-(\d+)/.exec(id)?.[1] ?? 0) >= 3) {
     return 'level'
   }
 
@@ -44,15 +45,19 @@ export function canDisableGoogleThinking(modelId: string): boolean {
   return !GOOGLE_NO_DISABLE_MODELS.some((pattern) => pattern.test(normalizedModelId))
 }
 
-export function getSupportedGoogleThinkingLevels(modelId: string): GoogleThinkingLevel[] {
-  if (getGoogleThinkingMode(modelId) !== 'level') {
+export function getSupportedGoogleThinkingLevels(
+  modelId: string,
+  override?: GoogleThinkingMode | 'auto'
+): GoogleThinkingLevel[] {
+  if (getGoogleThinkingMode(modelId, override) !== 'level') {
     return []
   }
 
   const normalizedModelId = modelId.split('/').at(-1) || modelId
   const match = GOOGLE_THINKING_LEVELS_BY_MODEL.find(([pattern]) => pattern.test(normalizedModelId))
 
-  return match?.[1] || []
+  // Custom names and future Gemini families retain the standard effort control.
+  return match?.[1] || ['low', 'medium', 'high']
 }
 
 export function getDefaultGoogleThinkingLevel(modelId: string): GoogleThinkingLevel | undefined {
@@ -74,9 +79,10 @@ export function normalizeGoogleThinkingLevel(
 
 export function normalizeGoogleThinkingConfig(
   modelId: string,
-  thinkingConfig?: GoogleThinkingConfig
+  thinkingConfig?: GoogleThinkingConfig,
+  override?: GoogleThinkingMode | 'auto'
 ): GoogleThinkingConfig | undefined {
-  const mode = getGoogleThinkingMode(modelId)
+  const mode = getGoogleThinkingMode(modelId, override)
 
   if (!thinkingConfig) {
     if (mode === 'level') {
@@ -94,7 +100,7 @@ export function normalizeGoogleThinkingConfig(
   }
 
   if (mode === 'level') {
-    const supportedLevels = getSupportedGoogleThinkingLevels(modelId)
+    const supportedLevels = getSupportedGoogleThinkingLevels(modelId, override)
 
     // Strip stale levels for Gemini 3 models outside the supported families.
     if (supportedLevels.length === 0) {
@@ -103,7 +109,7 @@ export function normalizeGoogleThinkingConfig(
         : undefined
     }
 
-    const thinkingLevel = normalizeGoogleThinkingLevel(modelId, thinkingConfig.thinkingLevel)
+    const thinkingLevel = thinkingConfig.thinkingLevel === 'minimal' ? supportedLevels[0] : thinkingConfig.thinkingLevel
     const effectiveLevel =
       thinkingLevel && supportedLevels.includes(thinkingLevel) ? thinkingLevel : supportedLevels.at(-1)
 

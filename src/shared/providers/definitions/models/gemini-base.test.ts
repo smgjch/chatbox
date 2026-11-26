@@ -68,9 +68,9 @@ describe('Gemini model listing', () => {
       }))
     )
     expect(apiRequest).toHaveBeenCalledWith({
-      url: 'https://example.com/v1beta/models?key=test-key',
+      url: kind === 'custom' ? 'https://example.com/v1beta/models' : 'https://example.com/v1beta/models?key=test-key',
       method: 'GET',
-      headers: {},
+      headers: kind === 'custom' ? { 'x-goog-api-key': 'test-key' } : {},
       ...(kind === 'custom' ? { useProxy: true } : {}),
     })
   })

@@ -71,40 +71,19 @@ describe('settings cards', () => {
     expect(source).not.toMatch(/(?<![:\w-])bg-chatbox-background-primary\b/)
   })
 
-  test.each([
-    'src/renderer/components/Shortcut.tsx',
-    'src/renderer/components/ModelList.tsx',
-    'src/renderer/routes/settings/default-models.tsx',
-  ])('%s gives its bordered panel the raised surface', (file) => {
-    const source = readFileSync(path.resolve(root, file), 'utf8')
-    expect(source).toMatch(
-      /border-chatbox-border-primary[^"'`]*bg-chatbox-background-raised|bg-chatbox-background-raised[^"'`]*border-chatbox-border-primary/
-    )
-  })
+  test.each(['src/renderer/components/Shortcut.tsx', 'src/renderer/components/ModelList.tsx'])(
+    '%s gives its bordered panel the raised surface',
+    (file) => {
+      const source = readFileSync(path.resolve(root, file), 'utf8')
+      expect(source).toMatch(
+        /border-chatbox-border-primary[^"'`]*bg-chatbox-background-raised|bg-chatbox-background-raised[^"'`]*border-chatbox-border-primary/
+      )
+    }
+  )
 
   // The class, not a `bg` prop, so the dark text-contrast adjustment that keys on it applies too.
   const expectRaisedPaper = (paper: string) => {
     expect(paper).toMatch(/className="[^"]*\bbg-chatbox-background-raised\b[^"]*"/)
     expect(paper).not.toMatch(/\sbg=/)
   }
-
-  test.each([
-    'src/renderer/routes/settings/provider/chatbox-ai/-components/LoginView.tsx',
-    'src/renderer/routes/settings/provider/chatbox-ai/-components/LicenseKeyView.tsx',
-    'src/renderer/routes/settings/provider/chatbox-ai/-components/LoggedInView.tsx',
-  ])('%s puts bordered Papers on the raised surface', (file) => {
-    const source = readFileSync(path.resolve(root, file), 'utf8')
-    const papers = source.match(/<Paper\b[^>]*withBorder[^>]*>/g) ?? []
-    expect(papers.length).toBeGreaterThan(0)
-    for (const paper of papers) expectRaisedPaper(paper)
-  })
-
-  test('the knowledge base documents panel sits on the raised surface', () => {
-    const source = readFileSync(
-      path.resolve(root, 'src/renderer/components/knowledge-base/KnowledgeBaseDocuments.tsx'),
-      'utf8'
-    )
-    const panel = /<Paper withBorder radius="lg" p=\{0\}[^>]*>/.exec(source)?.[0] ?? ''
-    expectRaisedPaper(panel)
-  })
 })

@@ -21,8 +21,8 @@ describe('defaults', () => {
     expect(result.messageLayout).toBe('classic')
   })
 
-  it('settings() returns allowReportingAndTracking as true', () => {
-    expect(settings().allowReportingAndTracking).toBe(true)
+  it('settings() disables telemetry', () => {
+    expect(settings().allowReportingAndTracking).toBe(false)
   })
 
   it('uses default interface colors for legacy settings', () => {
@@ -116,8 +116,8 @@ describe('defaults', () => {
   it('chatSessionSettings() returns provider and modelId', () => {
     const result: SessionSettings = chatSessionSettings()
 
-    expect(result.provider).toBe(ModelProviderEnum.ChatboxAI)
-    expect(result.modelId).toBe('chatboxai-4')
+    expect(result.provider).toBe(ModelProviderEnum.OpenAI)
+    expect(result.modelId).toBe('gpt-4o-mini')
   })
 
   it('pictureSessionSettings() returns provider, modelId, dalleStyle, imageGenerateNum', () => {

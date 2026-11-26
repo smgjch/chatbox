@@ -1,20 +1,6 @@
 import type { AgentModeValue, MessageRole } from '../types'
 
-/**
- * Static capability policy for the chat/work mode split (see
- * docs/technical/chat-work-mode-split.md).
- *
- * Deliberately separate from `action-gates.ts`, which models *transient* locks
- * (streaming replies, compaction, pending approval) that hosts present as
- * "disabled + why" notices. Mode policy models *static* availability — an
- * action a mode simply does not offer — and hosts present it by hiding the
- * entry point. The one action needing both dimensions (switching forks while
- * replies stream) stays in action-gates, keyed by `SessionActionContext.sessionMode`.
- *
- * This policy is a client-side UX constraint, not a data invariant: older
- * clients and sync peers do not enforce it, so storage/domain logic must never
- * assume work-mode messages are immutable.
- */
+/** Legacy mode types remain readable for imported conversations; the app always resolves to chat. */
 
 export type SessionMode = 'chat' | 'work'
 
@@ -40,17 +26,8 @@ export type ModePolicyAction =
   /** Open or navigate Thread History (toolbar, drawer, in-transcript labels). */
   | 'thread-history'
 
-/**
- * `'on'` is Work Mode; `'off'`, `'auto'` and unset are Chat Mode ('auto' only
- * arms the first-turn suggestion classifier — capabilities stay chat-level
- * until the user accepts the upgrade, see agentModeState.ts).
- *
- * Policy follows the session data, not platform capability: a work-mode
- * session synced to mobile keeps its restrictions even though the agent
- * cannot run there.
- */
-export function resolveSessionMode(agentModeValue: AgentModeValue | undefined): SessionMode {
-  return agentModeValue === 'on' ? 'work' : 'chat'
+export function resolveSessionMode(_agentModeValue: AgentModeValue | undefined): SessionMode {
+  return 'chat'
 }
 
 const WORK_MODE_UNAVAILABLE: ReadonlySet<ModePolicyAction> = new Set([

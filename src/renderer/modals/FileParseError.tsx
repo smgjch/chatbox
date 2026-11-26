@@ -1,221 +1,46 @@
+import { AdaptiveModal } from '@/components/common/AdaptiveModal'
 import NiceModal, { useModal } from '@ebay/nice-modal-react'
-import { Alert, Button, Stack, Text } from '@mantine/core'
+import { Alert, Stack, Text } from '@mantine/core'
 import {
   LOCAL_PARSER_FILE_TOO_LARGE_ERROR,
   LOCAL_PARSER_MAX_PDF_FILE_SIZE_LABEL,
   LOCAL_PARSER_PDF_PASSWORD_PROTECTED_ERROR,
 } from '@shared/file-parse-errors'
-import { IconAlertCircle } from '@tabler/icons-react'
-import { Trans, useTranslation } from 'react-i18next'
-import { resolveQuotaCardAction } from '@/components/chat/message-error-presentation'
-import { QuotaExhaustedCard } from '@/components/chat/QuotaExhaustedCard'
-import { AdaptiveModal } from '@/components/common/AdaptiveModal'
-import LinkTargetBlank from '@/components/common/Link'
-import { ScalableIcon } from '@/components/common/ScalableIcon'
-import { navigateToSettings } from '@/modals/settings-navigation'
-import { trackingEvent } from '@/packages/event'
-import { buildChatboxUrl } from '@/packages/remote'
-import platform from '@/platform'
-import {
-  isSessionAttachmentRagAuthError,
-  isSessionAttachmentRagIndexingError,
-  SESSION_ATTACHMENT_RAG_PARSED_CONTENT_TOO_LARGE_ERROR,
-  SESSION_ATTACHMENT_RAG_REQUIRES_KNOWLEDGE_BASE_ERROR,
-  SESSION_ATTACHMENT_RAG_REQUIRES_TOOL_USE_MODEL_ERROR,
-} from '@/stores/sessionAttachmentRagErrors'
-import * as settingActions from '@/stores/settingActions'
-import { useSettingsStore } from '@/stores/settingsStore'
-import { getChatboxAIParserAccountError, getFileParseErrorI18nKey } from '@/utils/file-parse-error'
-
-/** Same token as other in-app "open settings" guidance links; no palette color literals. */
-const SETTINGS_GUIDANCE_LINK_CLASS =
-  'cursor-pointer border-0 bg-transparent p-0 underline font-semibold text-chatbox-tint-brand'
-const SETTINGS_GUIDANCE_ANCHOR_CLASS = 'cursor-pointer underline font-semibold text-chatbox-tint-brand'
-
-interface FileParseErrorProps {
-  errorCode: string
-  fileName?: string
-}
-
-const FileParseError = NiceModal.create(({ errorCode, fileName }: FileParseErrorProps) => {
+import { useTranslation } from 'react-i18next'
+const FileParseError = NiceModal.create(({ errorCode, fileName }: { errorCode: string; fileName?: string }) => {
   const modal = useModal()
   const { t } = useTranslation()
-  const licensePlan = useSettingsStore((state) => state.licenseDetail?.plan)
-
-  const onClose = () => {
+  const close = () => {
     modal.resolve()
     modal.hide()
   }
-
-  // 根据错误码和平台能力获取错误文案
-  const errorI18nKey = getFileParseErrorI18nKey(errorCode, platform.isDesktopLike)
-  const accountError = getChatboxAIParserAccountError(errorCode)
-  const quotaCardKind =
-    accountError === 'points-exhausted'
-      ? 'quota-exhausted'
-      : accountError === 'free-points-exhausted'
-        ? 'free-quota-exhausted'
-        : undefined
-
-  const openMorePlans = () => {
-    platform.openLink(
-      buildChatboxUrl(
-        `/redirect_app/view_more_plans/${settingActions.getLanguage()}?utm_source=app&utm_content=file_parse_error`
-      )
-    )
-    trackingEvent('click_view_more_plans_button_from_file_parse_error', {
-      event_category: 'user',
-    })
-  }
-
-  // 错误提示内容
-  const renderErrorTips = () => {
-    if (errorCode === LOCAL_PARSER_PDF_PASSWORD_PROTECTED_ERROR) {
-      return (
-        <Text>
-          {t('This PDF is password-protected, so its content cannot be read. Remove the password and upload it again.')}
-        </Text>
-      )
-    }
-    if (errorCode === LOCAL_PARSER_FILE_TOO_LARGE_ERROR) {
-      return (
-        <Text>
-          {t('This PDF is too large to process (max {{size}}). Please upload a smaller file.', {
+  const message =
+    errorCode === LOCAL_PARSER_PDF_PASSWORD_PROTECTED_ERROR
+      ? t('This PDF is password-protected, so its content cannot be read. Remove the password and upload it again.')
+      : errorCode === LOCAL_PARSER_FILE_TOO_LARGE_ERROR
+        ? t('This PDF is too large to process (max {{size}}). Please upload a smaller file.', {
             size: LOCAL_PARSER_MAX_PDF_FILE_SIZE_LABEL,
-          })}
-        </Text>
-      )
-    }
-    if (isSessionAttachmentRagAuthError(errorCode)) {
-      return (
-        <Text>
-          {t(
-            'This large file needs Chatbox AI to finish indexing. Sign in to Chatbox AI, then retry this file. If you do not want to use Chatbox AI, remove the file and upload a smaller attachment instead.'
-          )}
-        </Text>
-      )
-    }
-    if (isSessionAttachmentRagIndexingError(errorCode)) {
-      return <Text>{`${t('Indexing failed')}. ${t('Continue')}`}</Text>
-    }
-    if (errorCode === SESSION_ATTACHMENT_RAG_REQUIRES_KNOWLEDGE_BASE_ERROR) {
-      return (
-        <Text>
-          {t('This attachment is too large for chat attachments. Please upload it through Knowledge Base instead.')}
-        </Text>
-      )
-    }
-    if (errorCode === SESSION_ATTACHMENT_RAG_PARSED_CONTENT_TOO_LARGE_ERROR) {
-      return (
-        <Text>
-          {t(
-            'This document contains too much text for chat attachments. Please upload it through Knowledge Base instead.'
-          )}
-        </Text>
-      )
-    }
-    if (errorCode === SESSION_ATTACHMENT_RAG_REQUIRES_TOOL_USE_MODEL_ERROR) {
-      return (
-        <Text>
-          {t(
-            'Large file Q&A requires a model with tool use support. Switch to a compatible model or remove this file.'
-          )}
-        </Text>
-      )
-    }
-
-    if (!errorI18nKey) {
-      // 未知错误
-      return <Text>{t('Failed to parse file. Please try again or use a different file format.')}</Text>
-    }
-
-    return (
-      <Trans
-        i18nKey={errorI18nKey}
-        values={{
-          model: t('current model'),
-        }}
-        components={{
-          OpenSettingButton: (
-            <button
-              type="button"
-              className={SETTINGS_GUIDANCE_LINK_CLASS}
-              onClick={() => {
-                onClose()
-                navigateToSettings('/chatbox-ai')
-              }}
-            />
-          ),
-          OpenExtensionSettingButton: <span />,
-          OpenMorePlanButton: <a className={SETTINGS_GUIDANCE_ANCHOR_CLASS} onClick={openMorePlans} />,
-          OpenDeepSeekProviderSettingButton: (
-            <button
-              type="button"
-              className={SETTINGS_GUIDANCE_LINK_CLASS}
-              onClick={() => {
-                onClose()
-                navigateToSettings('/provider/deepseek')
-              }}
-            />
-          ),
-          OpenDocumentParserSettingButton: (
-            <button
-              type="button"
-              className={SETTINGS_GUIDANCE_LINK_CLASS}
-              onClick={() => {
-                onClose()
-                navigateToSettings('/document-parser')
-              }}
-            />
-          ),
-          LinkToHomePage: <LinkTargetBlank href="https://chatboxai.app" />,
-          LinkToAdvancedFileProcessing: (
-            <LinkTargetBlank
-              href={buildChatboxUrl(
-                `/redirect_app/advanced_file_processing/${settingActions.getLanguage()}?utm_source=app&utm_content=file_parse_error`
-              )}
-            />
-          ),
-          LinkToAdvancedUrlProcessing: (
-            <LinkTargetBlank
-              href={buildChatboxUrl(
-                `/redirect_app/advanced_url_processing/${settingActions.getLanguage()}?utm_source=app&utm_content=file_parse_error`
-              )}
-            />
-          ),
-        }}
-      />
-    )
-  }
-
+          })
+        : t('Failed to parse file. Please try again or use a different file format.')
   return (
-    <AdaptiveModal opened={modal.visible} onClose={onClose} size="md" centered title={t('File Processing Error')}>
+    <AdaptiveModal
+      opened={modal.visible}
+      onClose={close}
+      onExitTransitionEnd={modal.remove}
+      centered
+      title={t('File Processing Error')}
+    >
       <Stack gap="md">
-        {fileName && (
-          <Text size="sm" c="chatbox-secondary">
-            {t('File')}: {fileName}
-          </Text>
-        )}
-
-        {quotaCardKind ? (
-          <QuotaExhaustedCard
-            kind={quotaCardKind}
-            action={resolveQuotaCardAction(quotaCardKind, licensePlan)}
-            onAction={openMorePlans}
-          />
-        ) : (
-          <Alert icon={<ScalableIcon size={20} icon={IconAlertCircle} />} color="orange" variant="light">
-            {renderErrorTips()}
-          </Alert>
-        )}
-
-        <AdaptiveModal.Actions>
-          <AdaptiveModal.CloseButton onClick={onClose} />
-          {accountError === 'plan-expired' && <Button onClick={openMorePlans}>{t('View More Plans')}</Button>}
-        </AdaptiveModal.Actions>
+        {fileName && <Text size="sm">{fileName}</Text>}
+        <Alert color="orange">{message}</Alert>
+        <Text size="xs" c="dimmed">
+          {errorCode}
+        </Text>
       </Stack>
+      <AdaptiveModal.Actions>
+        <AdaptiveModal.CloseButton onClick={close} />
+      </AdaptiveModal.Actions>
     </AdaptiveModal>
   )
 })
-
 export default FileParseError

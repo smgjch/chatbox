@@ -1,26 +1,5 @@
-import { finishAbortedGeneration } from '@chatbox/core/generation'
-import { SessionActionBlockedError } from '@chatbox/core/session/action-gates'
-import { t } from 'i18next'
-import { notifySessionLockBlocked } from '@/utils/session-lock-copy'
-import { getCompactionUIState } from '../atoms/compactionAtoms'
-import { compactionFailureError, SessionNotFoundError } from '@chatbox/core'
-import {
-  createGenerationSegmentSplitWriter,
-  type SessionService,
-  StreamingWriteCoordinator,
-  snapshotStreamingMessage,
-} from '@chatbox/core/application/session'
-import { withSessionGenerationLock } from '@chatbox/core/generation'
-import { isExpectedGenerationError } from '@shared/models/error-classification'
-import { BaseError, ChatboxAIAPIError } from '@shared/models/errors'
-import { extractStreamErrorMessage } from '@shared/models/utils/stream-error-message'
-import { supportsSessionGeneration } from '@shared/session/capabilities'
-import { cleanupSessionAttachments } from './attachment-cleanup'
-import { createMessage, type Message } from '@shared/types'
-import { countMessageWords } from '@shared/utils/message'
-import { normalizeErrorForSentry } from '@shared/utils/sentry_policy'
 import { createModel } from '@/adapters'
-import { rendererApplication, sessionRepository } from '@/app/renderer-application'
+import { rendererApplication } from '@/app/renderer-application'
 import { getLogger } from '@/lib/utils'
 import { runCompactionWithUIState } from '@/packages/context-management'
 import { getMessageProviderName, getModelDisplayName } from '@/packages/model-setting-utils'
@@ -28,9 +7,26 @@ import { estimateTokensFromMessages, type TokenModel } from '@/packages/token'
 import platform from '@/platform'
 import { clearMessageGenerationStopOperation } from '@/stores/generationStopOperations'
 import { reportError } from '@/utils/sentry'
-import { SESSION_ATTACHMENT_RAG_LOG_PREFIX } from '../../../shared/session-attachment-rag/logging'
+import { notifySessionLockBlocked } from '@/utils/session-lock-copy'
+import { compactionFailureError, SessionNotFoundError } from '@chatbox/core'
+import {
+  createGenerationSegmentSplitWriter,
+  type SessionService,
+  snapshotStreamingMessage,
+  StreamingWriteCoordinator,
+} from '@chatbox/core/application/session'
+import { finishAbortedGeneration, withSessionGenerationLock } from '@chatbox/core/generation'
+import { SessionActionBlockedError } from '@chatbox/core/session/action-gates'
+import { isExpectedGenerationError } from '@shared/models/error-classification'
+import { BaseError, ChatboxAIAPIError } from '@shared/models/errors'
+import { extractStreamErrorMessage } from '@shared/models/utils/stream-error-message'
+import { supportsSessionGeneration } from '@shared/session/capabilities'
+import { createMessage, type Message } from '@shared/types'
+import { countMessageWords } from '@shared/utils/message'
+import { normalizeErrorForSentry } from '@shared/utils/sentry_policy'
+import { t } from 'i18next'
+import { getCompactionUIState } from '../atoms/compactionAtoms'
 import { markSessionReplyFailed } from '../sessionActivityStore'
-import { ensureMessageFileSessionAttachment } from '../sessionAttachmentRagIndexing'
 import * as settingActions from '../settingActions'
 import { settingsStore } from '../settingsStore'
 import { guardSessionAction } from './action-guard'
@@ -44,49 +40,6 @@ export const splitStreamingMessage = createGenerationSegmentSplitWriter({
   sessions: rendererApplication.sessions,
   streamingWrites: streamingWriteCoordinator,
 })
-
-export async function attachLargeFileRagMetadata(sessionId: string, message: Message): Promise<Message> {
-  if (!platform.isDesktopLike || !message.files?.length) {
-    return message
-  }
-
-  let changed = false
-  const files = await Promise.all(
-    message.files.map(async (file) => {
-      if (file.ragMode !== 'session-retrieval' || !file.storageKey) {
-        return file
-      }
-
-      const nextFile = await ensureMessageFileSessionAttachment({
-        sessionId,
-        messageId: message.id,
-        file,
-      })
-      changed =
-        changed ||
-        nextFile.sessionAttachmentId !== file.sessionAttachmentId ||
-        nextFile.sessionAttachmentAvailability !== file.sessionAttachmentAvailability ||
-        nextFile.sessionAttachmentIndexStatus !== file.sessionAttachmentIndexStatus ||
-        nextFile.sessionAttachmentStatus !== file.sessionAttachmentStatus ||
-        nextFile.sessionAttachmentChunkCount !== file.sessionAttachmentChunkCount ||
-        nextFile.sessionAttachmentTotalChunks !== file.sessionAttachmentTotalChunks ||
-        nextFile.sessionAttachmentEmbeddedChunks !== file.sessionAttachmentEmbeddedChunks ||
-        nextFile.sessionAttachmentIndexingStage !== file.sessionAttachmentIndexingStage
-      return nextFile
-    })
-  )
-
-  if (!changed) {
-    return message
-  }
-
-  const updatedMessage = { ...message, files }
-  log.debug(
-    `${SESSION_ATTACHMENT_RAG_LOG_PREFIX} Attachment metadata attached to message: session=${sessionId}, message=${message.id}`
-  )
-  await rendererApplication.sessions.updateMessage(sessionId, message.id, updatedMessage)
-  return updatedMessage
-}
 
 /**
  * Refreshes a message's word and token counts. `dropTokenCaches` clears cached
@@ -256,7 +209,6 @@ export async function removeMessage(sessionId: string, messageId: string) {
     if (result.cancelMessageIds.includes(messageId) || rendererApplication.generationRuntime.get(sessionId, messageId))
       rendererApplication.generationRuntime.discard(sessionId, messageId, 'message-deleted')
     clearMessageGenerationStopOperation(sessionId, messageId)
-    cleanup = cleanupSessionAttachments(sessionId, messageId)
   }
   try {
     const result = await rendererApplication.sessions.executeStructureCommand(
@@ -322,26 +274,6 @@ export async function submitNewUserMessageUnlocked(
     return
   }
 
-  if (platform.type === 'mobile') {
-    const { getSessionAgentModeEntry } = await import('./agent-mode')
-    if (getSessionAgentModeEntry(sessionId, session).value === 'on') {
-      const [{ capacitorWorkspace }, { currentBlobStorage }] = await Promise.all([
-        import('@/packages/mobile-work-mode/runtime'),
-        import('@/adapters/CurrentBlobStorage'),
-      ])
-      const attachments = async function* () {
-        for await (const row of sessionRepository.iterateSessionAttachmentFacts({ sessionId, scope: 'active-path' })) {
-          yield {
-            files: row.files,
-            contentParts: row.imageStorageKeys.map((storageKey) => ({ type: 'image' as const, storageKey })),
-          }
-        }
-        yield params.newUserMsg
-      }
-      await capacitorWorkspace.preflight(sessionId, attachments(), currentBlobStorage)
-    }
-  }
-
   // Run compaction check before sending message (blocking)
   // Only for chat sessions with auto-compaction enabled
   if (session.type === 'chat' || session.type === undefined) {
@@ -364,7 +296,6 @@ export async function submitNewUserMessageUnlocked(
     // This allows caller to clear draft at the right time
     params.onUserMessageReady?.()
     await insertMessage(sessionId, newUserMsg)
-    newUserMsg = await attachLargeFileRagMetadata(sessionId, newUserMsg)
   }
 
   const globalSettings = settingsStore.getState().getSettings()

@@ -59,8 +59,8 @@ allowBuilds:
 overrides:
   "@tanstack/router-generator": 1.120.15
   "@tanstack/router-plugin": 1.120.15
-  "@mastra/libsql": 0.13.2
-  "@mastra/rag": 1.0.8
+
+
   handlebars: ">=4.7.9"
   convict: ">=6.2.5"
   fast-xml-parser: ">=5.5.7"
@@ -68,8 +68,8 @@ overrides:
 
 patchedDependencies:
   "@capacitor-community/sqlite@7.0.3": patches/@capacitor-community__sqlite@7.0.3.patch
-  "@mastra/libsql@0.13.2": patches/@mastra__libsql@0.13.2.patch
+
   "@openrouter/ai-sdk-provider@3.0.0": patches/@openrouter__ai-sdk-provider@3.0.0.patch
   fflate@0.8.3: patches/fflate@0.8.3.patch
-  libsql@0.5.22: patches/libsql@0.5.22.patch
+
   mdast-util-gfm-autolink-literal@2.0.1: patches/mdast-util-gfm-autolink-literal@2.0.1.patch

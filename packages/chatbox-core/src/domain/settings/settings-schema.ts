@@ -50,6 +50,8 @@ export const ProviderModelInfoSchema = z.object({
   providerId: z.string().optional().catch(undefined),
   type: z.enum(['chat', 'embedding', 'rerank', 'image']).optional().catch(undefined),
   apiStyle: z.enum(['google', 'openai', 'openai-responses', 'anthropic']).optional().catch(undefined),
+  // A gateway may use aliases that cannot be classified by model name.
+  thinkingMode: z.enum(['auto', 'level', 'budget', 'none']).optional().catch(undefined),
   nickname: z.string().optional().catch(undefined),
   labels: z.array(z.string()).optional().catch([]),
   capabilities: z
@@ -76,6 +78,9 @@ export const ProviderSettingsSchema = z.object({
   apiKey: z.string().optional().catch(undefined),
   apiHost: z.string().optional().catch(undefined),
   apiPath: z.string().optional().catch(undefined),
+  geminiAuthMode: z.enum(['google-api-key', 'bearer']).optional().catch(undefined),
+  geminiIncludeModel: z.boolean().optional().catch(undefined),
+  geminiStreaming: z.boolean().optional().catch(undefined),
   models: z.array(ProviderModelInfoSchema).optional().catch(undefined),
   modelGroups: z.array(ProviderModelGroupSchema).optional().catch(undefined),
   excludedModels: z.array(z.string()).optional().catch(undefined),
