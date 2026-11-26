@@ -30,6 +30,7 @@ const h = vi.hoisted(() => ({
   regenerateInNewFork: vi.fn(),
   prepareBranchCreation: vi.fn<() => Promise<boolean>>(),
   showModal: vi.fn(),
+  timelineRender: vi.fn(),
 }))
 
 vi.mock('react-i18next', async (importOriginal) => ({
@@ -125,7 +126,13 @@ vi.mock('../common/CompressionModal', () => ({
   }) => <div data-testid="compression-modal">{`${session.id}:${targetMessageId}:${targetPreview}`}</div>,
 }))
 vi.mock('../message-parts/ToolCallPartUI', () => ({ MessageArtifactsUI: () => null, ToolCallPartUI: () => null }))
-vi.mock('../message-parts/StepTimelineUI', () => ({ ReasoningContentUI: () => null, StepTimelineUI: () => null }))
+vi.mock('../message-parts/StepTimelineUI', () => ({
+  ReasoningContentUI: () => null,
+  StepTimelineUI: ({ parts }: { parts: MessageType['contentParts'] }) => {
+    h.timelineRender(parts)
+    return null
+  },
+}))
 vi.mock('./MessageErrTips', () => ({ default: () => null }))
 vi.mock('./MessageLoading', () => ({ default: () => null, PreparingToolCallStatus: () => null }))
 vi.mock('./MessageAttachmentGrid', () => ({ MessageAttachmentGrid: () => null }))
@@ -186,6 +193,7 @@ beforeEach(() => {
   h.regenerateInNewFork.mockReset()
   h.prepareBranchCreation.mockReset().mockResolvedValue(true)
   h.showModal.mockReset()
+  h.timelineRender.mockReset()
   Object.defineProperty(window, 'matchMedia', {
     writable: true,
     value: vi.fn((query: string) => ({
@@ -204,6 +212,26 @@ beforeEach(() => {
 afterEach(() => {
   cleanup()
   vi.useRealTimers()
+})
+
+test('Gemini renders its native summary once and preserves the final answer outside the work timeline', () => {
+  renderMessage(
+    reply({
+      modelId: 'gemini-4-argon',
+      reasoningSummaryRequested: true,
+      contentParts: [
+        { type: 'reasoning', text: 'Native thought summary', stepIndex: 0 },
+        { type: 'text', text: 'Final answer', stepIndex: 0 },
+      ],
+      usage: { reasoningTokens: 23 },
+      finishReason: 'stop',
+    })
+  )
+  expect(screen.getAllByTestId('gemini-thinking-summary')).toHaveLength(1)
+  fireEvent.click(screen.getByRole('button', { name: 'Thinking summary' }))
+  expect(screen.getAllByText('Native thought summary')).toHaveLength(1)
+  expect(screen.getByText('Final answer')).toBeTruthy()
+  expect(h.timelineRender).not.toHaveBeenCalled()
 })
 
 describe.each(['bubble', 'classic'] as const)('small-screen message action bar in the %s layout', (layout) => {

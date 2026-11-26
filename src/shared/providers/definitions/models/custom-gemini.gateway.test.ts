@@ -67,7 +67,7 @@ describe('custom Gemini gateways', () => {
       model: 'gemini-4-argon',
       contents: [{ role: 'user', parts: [{ text: 'hi' }] }],
     })
-    expect(JSON.parse(request.body as string).generationConfig?.thinkingConfig).toBeUndefined()
+    expect(JSON.parse(request.body as string).generationConfig?.thinkingConfig).toEqual({ includeThoughts: true })
   })
   it('preserves Google header auth without putting secrets in the URL', async () => {
     const { model, apiRequest } = harness({ geminiAuthMode: 'google-api-key' })
@@ -134,6 +134,42 @@ describe('custom Gemini gateways', () => {
     const result = await model.chat([{ role: 'user', content: 'Solve the problem.' }], {})
     expect(result.contentParts).toEqual([{ type: 'text', text: 'hello' }])
     expect(result.usage?.reasoningTokens).toBe(23)
+  })
+  it.each([false, true])(
+    'distinguishes unreported reasoning usage from an explicit zero (stream=%s)',
+    async (stream) => {
+      for (const thoughtsTokenCount of [undefined, 0, 23]) {
+        const { model, apiRequest } = harness({}, stream)
+        const response = { ...reply, usageMetadata: { ...reply.usageMetadata, thoughtsTokenCount } }
+        apiRequest.mockImplementation(
+          async () =>
+            new Response(stream ? `data: ${JSON.stringify(response)}\n\n` : JSON.stringify(response), {
+              headers: { 'content-type': stream ? 'text/event-stream' : 'application/json' },
+            })
+        )
+        let state = createInitialState()
+        for await (const chunk of model.chatStream([{ role: 'user', content: 'hi' }], {})) {
+          state = (await processStreamChunk(chunk, state, { onFileReceived: vi.fn() })).state
+        }
+        expect(state.usage?.reasoningTokens).toBe(thoughtsTokenCount)
+      }
+    }
+  )
+  it('does not ask for summaries when thinking is disabled or unsupported', async () => {
+    const info: ProviderModelInfo = { modelId: 'gemini-2.5-flash', providerId: 'custom-agihub', apiStyle: 'google' }
+    const { model, apiRequest } = harness({ model: info })
+    await model.chat([{ role: 'user', content: 'hi' }], {
+      providerOptions: getReasoningProviderOptions('custom-agihub', info, 'off'),
+    })
+    expect(JSON.parse(apiRequest.mock.calls[0][0].body as string).generationConfig.thinkingConfig).toEqual({
+      includeThoughts: false,
+      thinkingBudget: 0,
+    })
+    const unsupported = harness({ model: { ...info, thinkingMode: 'none' } })
+    await unsupported.model.chat([{ role: 'user', content: 'hi' }], {})
+    expect(
+      JSON.parse(unsupported.apiRequest.mock.calls[0][0].body as string).generationConfig?.thinkingConfig
+    ).toBeUndefined()
   })
   it.each(['low', 'medium', 'high'] as const)(
     'sends selected %s effort for Gemini 4 and custom aliases',

@@ -1,7 +1,7 @@
 {
   "name": "chatbox-lite",
   "productName": "Chatbox Lite",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "engines": {
     "node": ">=22.13.0 <23.0.0",
     "pnpm": ">=10.17.0"

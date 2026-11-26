@@ -2110,5 +2110,10 @@
   "Chat-only edition. Your conversations and provider credentials stay on this device.": "Chat-only edition. Your conversations and provider credentials stay on this device.",
   "Files are parsed locally and included in the chat context.": "Files are parsed locally and included in the chat context.",
   "Chat-only edition. Use your own model providers; conversations stay on your device.": "Chat-only edition. Use your own model providers; conversations stay on your device.",
-  "Could not parse this file locally. Try a text-based file or paste its contents.": "Could not parse this file locally. Try a text-based file or paste its contents."
+  "Could not parse this file locally. Try a text-based file or paste its contents.": "Could not parse this file locally. Try a text-based file or paste its contents.",
+  "Thinking summary": "Sammanfattning av resonemang",
+  "Reasoning tokens: {{tokens}}": "Resonemangstoken: {{tokens}}",
+  "Waiting for a server thinking summary…": "Väntar på en sammanfattning av resonemanget från servern…",
+  "The server did not provide a thinking summary.": "Servern tillhandahöll ingen sammanfattning av resonemanget.",
+  "Reasoning usage was not provided.": "Användningen av resonemang rapporterades inte."
 }

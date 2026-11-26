@@ -2110,5 +2110,10 @@
   "Chat-only edition. Your conversations and provider credentials stay on this device.": "Chat-only edition. Your conversations and provider credentials stay on this device.",
   "Files are parsed locally and included in the chat context.": "Files are parsed locally and included in the chat context.",
   "Chat-only edition. Use your own model providers; conversations stay on your device.": "Chat-only edition. Use your own model providers; conversations stay on your device.",
-  "Could not parse this file locally. Try a text-based file or paste its contents.": "無法在本機解析此檔案，請改用包含文字的檔案或貼上其內容。"
+  "Could not parse this file locally. Try a text-based file or paste its contents.": "無法在本機解析此檔案，請改用包含文字的檔案或貼上其內容。",
+  "Thinking summary": "思考摘要",
+  "Reasoning tokens: {{tokens}}": "推理 token：{{tokens}}",
+  "Waiting for a server thinking summary…": "正在等待伺服器思考摘要…",
+  "The server did not provide a thinking summary.": "伺服器未提供摘要",
+  "Reasoning usage was not provided.": "未提供推理用量"
 }

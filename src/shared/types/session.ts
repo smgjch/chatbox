@@ -405,6 +405,8 @@ export const MessageSchema = z.object({
   files: z.array(MessageFileSchema).optional(),
   links: z.array(MessageLinkSchema).optional(),
   reasoningContent: z.string().optional().describe('deprecated, moved to contentParts'),
+  /** Whether the native Gemini request asked the server to return a thinking summary. */
+  reasoningSummaryRequested: z.boolean().optional(),
   contentParts: MessageContentPartsSchema,
   isStreamingMode: z.boolean().optional(),
   errorCode: z.number().optional(),

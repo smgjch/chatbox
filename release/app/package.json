@@ -1,7 +1,7 @@
 {
   "name": "chatbox-lite",
   "productName": "Chatbox Lite",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A chat-only desktop client with custom AI providers",
   "author": {
     "name": "Mediocre Company",

@@ -2110,5 +2110,10 @@
   "Chat-only edition. Your conversations and provider credentials stay on this device.": "Chat-only edition. Your conversations and provider credentials stay on this device.",
   "Files are parsed locally and included in the chat context.": "Files are parsed locally and included in the chat context.",
   "Chat-only edition. Use your own model providers; conversations stay on your device.": "Chat-only edition. Use your own model providers; conversations stay on your device.",
-  "Could not parse this file locally. Try a text-based file or paste its contents.": "Could not parse this file locally. Try a text-based file or paste its contents."
+  "Could not parse this file locally. Try a text-based file or paste its contents.": "Could not parse this file locally. Try a text-based file or paste its contents.",
+  "Thinking summary": "思考の要約",
+  "Reasoning tokens: {{tokens}}": "推論トークン：{{tokens}}",
+  "Waiting for a server thinking summary…": "サーバーからの思考の要約を待っています…",
+  "The server did not provide a thinking summary.": "サーバーから思考の要約が提供されませんでした。",
+  "Reasoning usage was not provided.": "推論の使用量は提供されませんでした。"
 }

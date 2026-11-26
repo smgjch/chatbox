@@ -763,6 +763,22 @@ export class GenerationService<TContext> {
       }
 
       const chatOptions = { ...prepared.chatOptions }
+      targetMessage.reasoningSummaryRequested = undefined
+      const baseOnRequestResolved = chatOptions.onRequestResolved
+      chatOptions.onRequestResolved = async (request) => {
+        await baseOnRequestResolved?.(request)
+        if (model.apiStyle === 'google') {
+          const thinking = request.callSettings.providerOptions?.google?.thinkingConfig
+          targetMessage.reasoningSummaryRequested =
+            !!thinking &&
+            typeof thinking === 'object' &&
+            'includeThoughts' in thinking &&
+            thinking.includeThoughts === true
+          // Use the actual transport mode, including a gateway's non-streaming override.
+          targetMessage.isStreamingMode = request.stream
+          sessions.updateStreamingCache(sessionId, targetMessage)
+        }
+      }
       let segmentStartedAt = startedAt
       // When the current segment has produced no output yet, the steered user
       // belongs before it — anchored at the target's predecessor.
@@ -795,6 +811,7 @@ export class GenerationService<TContext> {
           aiProviderName: targetMessage.aiProviderName,
           model: targetMessage.model,
           modelId: targetMessage.modelId,
+          reasoningSummaryRequested: targetMessage.reasoningSummaryRequested,
           name: targetMessage.name,
           style: targetMessage.style,
           isStreamingMode: targetMessage.isStreamingMode,

@@ -964,6 +964,21 @@ describe('GenerationService', () => {
     expect(harness.afterMessageGenerated).toHaveBeenCalledWith('session-1', finalMessage)
   })
 
+  it('persists whether the actual Gemini request asked for a native summary, including non-streaming gateways', async () => {
+    Object.assign(harness.model, { apiStyle: 'google', modelId: 'private-alias' })
+    vi.spyOn(harness.model, 'chatStream').mockImplementation(async function* (messages, options) {
+      await options.onRequestResolved?.({
+        callSettings: { providerOptions: { google: { thinkingConfig: { includeThoughts: true } } } },
+        modelMessages: messages,
+        tools: {},
+        stream: false,
+      })
+      yield* stream(generationStreamFixture.chunks)
+    })
+    await harness.service.orchestrate('session-1', targetMessage(), { operationType: 'send_message' })
+    expect(lastPersisted(harness)).toMatchObject({ reasoningSummaryRequested: true, isStreamingMode: false })
+  })
+
   it('anchors steering at the continued assistant message when it already has output', async () => {
     const continuedMessage: Message = {
       ...targetMessage(),

@@ -80,6 +80,7 @@ import { ICON_SIZE, ICON_STROKE_WIDTH } from '../common/IconButton'
 import { ScalableIcon } from '../common/ScalableIcon'
 import Loading from '../icons/Loading'
 import { ReasoningContentUI, StepTimelineUI } from '../message-parts/StepTimelineUI'
+import { GeminiThinkingSummary, getGeminiThinkingSummary } from '../message-parts/GeminiThinkingSummary'
 import { MessageArtifactsUI, ToolCallPartUI } from '../message-parts/ToolCallPartUI'
 import { getMessageActionVisibilityClass, type MessageButtonGroup } from './message-action-state'
 import { formatMessageTimestamp, getMessageHeader, getMessageHeaderTitle } from './message-header'
@@ -204,6 +205,8 @@ const _Message: FC<Props> = (props) => {
   const showAvatar = useSettingsStore((state) => state.showAvatar)
   const messageLayout = useSettingsStore((state) => state.messageLayout)
   const generationRuntimeActive = useIsGenerationRuntimeActive(sessionId, msg.id)
+  const geminiThinkingSummary = getGeminiThinkingSummary(msg)
+  const hasGeminiThinkingSummary = geminiThinkingSummary !== null
 
   const isBubbleLayout = messageLayout === 'bubble'
   const header = useMemo(
@@ -519,8 +522,12 @@ const _Message: FC<Props> = (props) => {
   // Normalize provider-specific non-streaming reasoning order before deciding
   // which text belongs to the process timeline and which text is the final answer.
   const { orderedContentParts, lastWorkStep, groupedContentParts } = useMemo(
-    () => createMessageTimelineLayout(contentParts, msg.isStreamingMode),
-    [contentParts, msg.isStreamingMode]
+    () =>
+      createMessageTimelineLayout(
+        hasGeminiThinkingSummary ? contentParts.filter((part) => part.type !== 'reasoning') : contentParts,
+        msg.isStreamingMode
+      ),
+    [contentParts, msg.isStreamingMode, hasGeminiThinkingSummary]
   )
 
   // Total time the assistant spent "working" on this message (thinking + tools).
@@ -829,7 +836,10 @@ const _Message: FC<Props> = (props) => {
               />
             </Flex>
           )}
-          {msg.reasoningContent && !(showWorkSummary && processCollapsed) && (
+          {geminiThinkingSummary && !(showWorkSummary && processCollapsed) && (
+            <GeminiThinkingSummary message={msg} onCopy={onCopyReasoningContent} />
+          )}
+          {msg.reasoningContent && !geminiThinkingSummary && !(showWorkSummary && processCollapsed) && (
             <ReasoningContentUI message={msg} onCopyReasoningContent={onCopyReasoningContent} />
           )}
           {getMessageText(msg, true, true).trim() === '' && <p></p>}

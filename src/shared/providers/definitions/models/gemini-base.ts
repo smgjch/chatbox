@@ -6,6 +6,7 @@ import type { CallChatCompletionOptions } from '../../../models/types'
 import type { ProviderModelInfo } from '../../../types'
 import type { ModelDependencies } from '../../../types/adapters'
 import { getGoogleThinkingMode, normalizeGoogleThinkingConfig } from '../../../utils/google-thinking'
+import { withGoogleReasoningUsage } from '../../../models/google-reasoning-usage'
 
 export interface GeminiModelOptions {
   model: ProviderModelInfo
@@ -42,7 +43,7 @@ export abstract class GeminiModel<TOptions extends GeminiModelOptions> extends A
   protected getChatModel(options: CallChatCompletionOptions): LanguageModelV4 {
     const provider = this.getProvider(options)
 
-    return provider.chat(this.options.model.modelId)
+    return withGoogleReasoningUsage(provider.chat(this.options.model.modelId))
   }
 
   protected getCallSettings(options: CallChatCompletionOptions): CallSettings {
@@ -56,16 +57,16 @@ export abstract class GeminiModel<TOptions extends GeminiModelOptions> extends A
       ],
     }
     const { thinkingConfig, ...googleOptions } = options.providerOptions?.google || {}
-    if (isModelSupportThinking && thinkingConfig) {
-      const normalizedThinkingConfig = normalizeGoogleThinkingConfig(
-        this.options.model.modelId,
-        thinkingConfig,
-        this.options.model.thinkingMode
-      )
+    if (isModelSupportThinking) {
+      // Ask for native summaries even at the provider's default effort. Do not
+      // pass an empty config to the normalizer: it would choose a thinking level.
+      const normalizedThinkingConfig = thinkingConfig
+        ? normalizeGoogleThinkingConfig(this.options.model.modelId, thinkingConfig, this.options.model.thinkingMode)
+        : { includeThoughts: true }
       providerParams = {
         ...providerParams,
         ...googleOptions,
-        ...(normalizedThinkingConfig ? { thinkingConfig: normalizedThinkingConfig } : {}),
+        ...(normalizedThinkingConfig ? { thinkingConfig: { includeThoughts: true, ...normalizedThinkingConfig } } : {}),
       }
     }
 
