@@ -1,0 +1,110 @@
+name: Release Chatbox Lite for macOS
+
+on:
+  push:
+    branches:
+      - 'release/macos/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-macos-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 35
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.23.5'
+      - name: Validate release version
+        id: version
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs')
+          const { version } = require('./package.json')
+          const app = require('./release/app/package.json')
+          if (!/^\d+\.\d+\.\d+$/.test(version) || app.version !== version) {
+            throw new Error('Root and app versions must match a stable semantic version')
+          }
+          if (process.env.GITHUB_REF_NAME !== `release/macos/${version}`) {
+            throw new Error(`Publish from release/macos/${version}`)
+          }
+          fs.accessSync(`docs/releases/v${version}.md`)
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `version=${version}\n`)
+          NODE
+      - name: Install dependencies
+        run: |
+          corepack enable
+          pnpm install --frozen-lockfile
+          npm ci --ignore-scripts --workspaces=false --prefix release/app
+      - name: Check source and tests
+        run: |
+          pnpm check
+          pnpm check:packages
+          pnpm test
+      - name: Build macOS Apple Silicon application
+        run: |
+          pnpm build
+          pnpm exec electron-builder --mac zip --arm64 --publish never
+      - name: Prepare release assets
+        env:
+          RELEASE_VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          python3 <<'PY'
+          import hashlib, os, pathlib, shutil
+          archives = list(pathlib.Path('release/build').glob('*-arm64-mac.zip'))
+          if len(archives) != 1:
+              raise RuntimeError(f'Expected one macOS archive, found {len(archives)}')
+          destination = pathlib.Path('release-assets')
+          destination.mkdir()
+          archive = destination / f"Chatbox-Lite-{os.environ['RELEASE_VERSION']}-macOS-arm64.zip"
+          shutil.copyfile(archives[0], archive)
+          digest = hashlib.file_digest(archive.open('rb'), 'sha256').hexdigest()
+          (destination / 'SHA256SUMS.txt').write_text(f'{digest}  {archive.name}\n')
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-release
+          path: release-assets/
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: macos-release
+          path: release-assets
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_VERSION: ${{ needs.build.outputs.version }}
+          RELEASE_REPOSITORY: ${{ github.repository }}
+          RELEASE_COMMIT: ${{ github.sha }}
+        run: |
+          gh release create "v${RELEASE_VERSION}" release-assets/* \
+            --repo "$RELEASE_REPOSITORY" \
+            --target "$RELEASE_COMMIT" \
+            --title "Chatbox Lite ${RELEASE_VERSION} · macOS" \
+            --notes-file "docs/releases/v${RELEASE_VERSION}.md"
