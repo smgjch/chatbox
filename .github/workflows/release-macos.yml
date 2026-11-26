@@ -54,7 +54,8 @@ jobs:
         run: |
           pnpm check
           pnpm check:packages
-          pnpm test
+          # Bound contention on hosted macOS runners for the 100k-row SQLite tests.
+          pnpm test --maxWorkers=2
       - name: Build macOS Apple Silicon application
         run: |
           pnpm build
