@@ -135,6 +135,53 @@ describe('custom Gemini gateways', () => {
     expect(result.contentParts).toEqual([{ type: 'text', text: 'hello' }])
     expect(result.usage?.reasoningTokens).toBe(23)
   })
+  it('delivers reasoning and answer deltas before the SSE connection closes', async () => {
+    const { model, apiRequest } = harness({}, true)
+    let response!: ReadableStreamDefaultController<Uint8Array>
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        response = controller
+      },
+    })
+    apiRequest.mockResolvedValue(new Response(body, { headers: { 'content-type': 'text/event-stream' } }))
+    const encoder = new TextEncoder()
+    const emit = (parts: Record<string, unknown>[], complete = false) =>
+      response.enqueue(
+        encoder.encode(
+          `data: ${JSON.stringify({ candidates: [{ content: { role: 'model', parts }, ...(complete ? { finishReason: 'STOP' } : {}) }] })}\n\n`
+        )
+      )
+    let state = createInitialState()
+    let finished = false
+    const consume = (async () => {
+      for await (const chunk of model.chatStream([{ role: 'user', content: 'hi' }], {})) {
+        state = (await processStreamChunk(chunk, state, { onFileReceived: vi.fn() })).state
+      }
+      finished = true
+    })()
+    try {
+      emit([{ thought: true, text: 'Consider both cases.' }])
+      await vi.waitFor(() =>
+        expect(state.contentParts).toContainEqual(
+          expect.objectContaining({ type: 'reasoning', text: 'Consider both cases.' })
+        )
+      )
+      expect(finished).toBe(false)
+      emit([{ text: 'First fragment. ' }])
+      await vi.waitFor(() =>
+        expect(state.contentParts).toContainEqual(expect.objectContaining({ type: 'text', text: 'First fragment. ' }))
+      )
+      expect(finished).toBe(false)
+      emit([{ text: 'Last fragment.' }], true)
+    } finally {
+      response.close()
+      await consume
+    }
+    expect(state.contentParts).toContainEqual(
+      expect.objectContaining({ type: 'text', text: 'First fragment. Last fragment.' })
+    )
+    expect(finished).toBe(true)
+  })
   it.each([false, true])(
     'distinguishes unreported reasoning usage from an explicit zero (stream=%s)',
     async (stream) => {

@@ -26,6 +26,10 @@
 
 也可以粘贴完整的 `…/models/gemini-4-argon:generateContent` 地址，程序会提取基地址。其他 Gemini 代理可手动选择 `x-goog-api-key` 或 Bearer 鉴权，并分别控制请求体 `model` 字段和流式请求。启用流式后使用 `:streamGenerateContent?alt=sse`，需要网关支持此接口。
 
+流式输出需要同时开启“设置 → 聊天 → 流式输出”和“设置 → 模型提供方 → 对应 Gemini 提供方 → Gemini 流式响应”，并且会话没有单独关闭流式。AGIHub 预设为兼容示例中的 `generateContent`，默认关闭提供方的流式开关；推理强度和思考摘要设置不会改变这个开关。
+
+2026-11-27 的一次实际网关排查中，`gemini-4-argon:generateContent` 返回 200，而 `gemini-4-argon:streamGenerateContent?alt=sse` 两次返回 503、`protocol_unavailable`。这表示当时该网关路由未提供原生流式协议，不代表所有 AGIHub 模型或接口都不支持流式。此情况需网关开通相应协议，单独打开客户端开关无法恢复流式。
+
 选择模型后，在输入框的推理强度菜单选择 **默认 / 低 / 中 / 高**。Gemini 3 及更新命名模型使用 `generationConfig.thinkingConfig.thinkingLevel`；Gemini 2.5 使用 `thinkingBudget`。代理使用自定义模型别名时，可在模型编辑中指定推理参数模式。强度按提供方和模型分别保存，切换模型不会串用参数。
 
 选择“高”时，发送的请求形如：
@@ -100,7 +104,7 @@ pnpm exec electron-builder --mac zip --arm64 --publish never
 
 0.1.1 新增原生思考摘要面板、实际请求元数据保存及缺失推理用量的识别；相关单元和组件测试通过。完整回归共 6,809 项通过、14 项跳过。
 
-AGIHub 请求使用模拟服务验证，没有使用真实 API Key 进行线上调用。测试不等同于确认网关当前模型可用性。
+上述构建验证使用模拟服务，不等同于确认网关当前模型可用性。2026-11-27 另对配置的 Argon 路由进行了流式与非流式接口对照排查，结果见上文；其他模型和路由未进行线上验证。
 
 ## 许可证
 
