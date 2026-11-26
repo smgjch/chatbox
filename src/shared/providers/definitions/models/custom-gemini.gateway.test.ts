@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import { createInitialState, processStreamChunk } from '@chatbox/core/generation'
 import type { ModelDependencies } from '../../../types/adapters'
 import type { ProviderModelInfo } from '../../../types'
 import { ProviderSettingsSchema } from '../../../types'
@@ -12,14 +13,12 @@ const reply = {
   usageMetadata: { promptTokenCount: 1, candidatesTokenCount: 1, totalTokenCount: 2 },
 }
 function harness(options: Partial<ConstructorParameters<typeof CustomGemini>[0]> = {}, stream = false) {
-  const apiRequest = vi
-    .fn<ModelDependencies['request']['apiRequest']>()
-    .mockImplementation(
-      async () =>
-        new Response(stream ? `data: ${JSON.stringify(reply)}\n\n` : JSON.stringify(reply), {
-          headers: { 'content-type': stream ? 'text/event-stream' : 'application/json' },
-        })
-    )
+  const apiRequest = vi.fn<ModelDependencies['request']['apiRequest']>().mockImplementation(
+    async () =>
+      new Response(stream ? `data: ${JSON.stringify(reply)}\n\n` : JSON.stringify(reply), {
+        headers: { 'content-type': stream ? 'text/event-stream' : 'application/json' },
+      })
+  )
   const deps: ModelDependencies = {
     request: { apiRequest, fetchWithOptions: vi.fn() },
     storage: { getImage: vi.fn(), saveImage: vi.fn() },
@@ -78,6 +77,63 @@ describe('custom Gemini gateways', () => {
     expect(new Headers(request.headers).has('authorization')).toBe(false)
     expect(JSON.parse(request.body as string).model).toBeUndefined()
     expect(request.url).not.toContain('test-secret')
+  })
+  it.each([false, true])('preserves thought summaries and reported reasoning usage (stream=%s)', async (stream) => {
+    const { model, apiRequest } = harness({}, stream)
+    const response = {
+      candidates: [
+        {
+          content: {
+            role: 'model',
+            parts: [{ thought: true, text: 'Check both possible cases.' }, { text: 'The answer is 42.' }],
+          },
+          finishReason: 'STOP',
+        },
+      ],
+      usageMetadata: { promptTokenCount: 10, candidatesTokenCount: 5, thoughtsTokenCount: 23, totalTokenCount: 38 },
+    }
+    apiRequest.mockImplementation(
+      async () =>
+        new Response(stream ? `data: ${JSON.stringify(response)}\n\n` : JSON.stringify(response), {
+          headers: { 'content-type': stream ? 'text/event-stream' : 'application/json' },
+        })
+    )
+    const providerOptions = getReasoningProviderOptions(
+      'custom-agihub',
+      { modelId: 'gemini-4-argon', apiStyle: 'google' },
+      'high'
+    )
+    // Exercise the same stream processor used to persist desktop chat messages,
+    // including simulated streaming of generateContent JSON responses.
+    let state = createInitialState()
+    for await (const chunk of model.chatStream([{ role: 'user', content: 'Solve the problem.' }], {
+      providerOptions,
+    })) {
+      state = (await processStreamChunk(chunk, state, { onFileReceived: vi.fn() })).state
+    }
+    expect(state.contentParts).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: 'reasoning', text: 'Check both possible cases.' }),
+        expect.objectContaining({ type: 'text', text: 'The answer is 42.' }),
+      ])
+    )
+    expect(state.usage).toMatchObject({ inputTokens: 10, outputTokens: 28, reasoningTokens: 23, totalTokens: 38 })
+    expect(state.finishReason).toBe('stop')
+  })
+  it('preserves reasoning usage even when the gateway withholds thought summaries', async () => {
+    const { model, apiRequest } = harness()
+    apiRequest.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          ...reply,
+          usageMetadata: { promptTokenCount: 1, candidatesTokenCount: 1, thoughtsTokenCount: 23, totalTokenCount: 25 },
+        }),
+        { headers: { 'content-type': 'application/json' } }
+      )
+    )
+    const result = await model.chat([{ role: 'user', content: 'Solve the problem.' }], {})
+    expect(result.contentParts).toEqual([{ type: 'text', text: 'hello' }])
+    expect(result.usage?.reasoningTokens).toBe(23)
   })
   it.each(['low', 'medium', 'high'] as const)(
     'sends selected %s effort for Gemini 4 and custom aliases',

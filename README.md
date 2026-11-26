@@ -40,11 +40,21 @@ Authorization: Bearer <API Key>
 {
   "model": "gemini-4-argon",
   "contents": [{ "role": "user", "parts": [{ "text": "hi" }] }],
-  "generationConfig": { "thinkingConfig": { "thinkingLevel": "high" } }
+  "generationConfig": { "thinkingConfig": { "thinkingLevel": "high", "includeThoughts": true } }
 }
 ```
 
 “默认”不主动发送推理配置。实际请求还可能包含会话系统提示和其他聊天参数。具体参数是否被接受取决于网关对应的模型。
+
+### 确认推理是否生效
+
+推理强度图标表示客户端选择的参数，不代表服务端执行结果。选择“高”并发送一条需要推理的问题，然后查看以下证据：
+
+- **思考摘要**：如果 Gemini 返回 `candidates[].content.parts[]` 中带 `thought: true` 的文本，回复上方会出现“已深度思考”，点击即可展开。它是服务端提供的摘要，不保证包含完整思考过程。非流式请求在整条回复完成后才显示。
+- **推理用量**：Gemini 的 `usageMetadata.thoughtsTokenCount` 会保存为消息的 `usage.reasoningTokens`。大于 0 表示服务端报告实际使用了推理 token，即使没有公开摘要。
+- **检查现有回复**：打开“设置 → 数据与备份 → 导出数据”，选择相应对话，在“导出给旧版本使用”中选“仅导出对话（V1 JSON）”。用文本编辑器打开导出的 JSON，找到对应 assistant 消息的 `usage.reasoningTokens`，以及 `contentParts` 中 `type: "reasoning"` 的部分。
+
+如果只有最终答案、推理 token 为 0 或缺失，仍不能据此断定推理被关闭：网关可能未转发摘要或用量字段。此时需要检查网关原始响应或服务端日志，确认它是否识别并透传 `thinkingLevel` 和 `includeThoughts`。不要用响应耗时或模型自述作为开启推理的证据。
 
 ## 开发与构建
 
